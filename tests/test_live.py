@@ -8,7 +8,7 @@ Covers:
 
 Usage:
     python tests/test_live.py https://<service>/mcp
-    ESTIMATEGURD_MCP_URL=https://<service>/mcp python tests/test_live.py
+    ESTIMATEGUARD_MCP_URL=https://<service>/mcp python tests/test_live.py
 """
 
 from __future__ import annotations
@@ -28,13 +28,13 @@ os.environ["no_proxy"] = os.environ["NO_PROXY"] = "localhost,127.0.0.1"
 
 
 def endpoint() -> str:
-    url = os.environ.get("ESTIMATEGURD_MCP_URL")
+    url = os.environ.get("ESTIMATEGUARD_MCP_URL")
     if not url and len(sys.argv) > 1:
         url = sys.argv[1]
     if not url:
         sys.exit(
             "usage: test_live.py https://<service>/mcp "
-            "(or set ESTIMATEGURD_MCP_URL)"
+            "(or set ESTIMATEGUARD_MCP_URL)"
         )
     return url.rstrip("/")
 
