@@ -147,6 +147,27 @@ def test_quoted_total_discrepancy():
     assert any("differs from our line-by-line math" in f for f in res["findings"])
 
 
+def test_quoted_total_exact_match_is_exact_zero():
+    # quoted_total arrives as a JSON float. When it exactly matches the
+    # computed total, the discrepancy must be exactly 0.00 -- a near-zero
+    # float artifact (e.g. 1E-12) would fail this assertion.
+    res = evaluate(CLEAN_ESTIMATE, "10001", trade="roofing", quoted_total=16910.00)
+    assert "error" not in res, res
+    assert res["computed_total"] == "16910.00"
+    assert res["quoted_total"] == "16910.00"
+    assert res["total_discrepancy"] == "0.00", res["total_discrepancy"]
+    assert Decimal(res["total_discrepancy"]) == Decimal("0.00")
+
+
+def test_quoted_total_discrepancy_exact_cents():
+    # A float with fractional cents must convert exactly, not approximately:
+    # 16910.00 - 17000.50 is exactly -90.50.
+    res = evaluate(CLEAN_ESTIMATE, "10001", trade="roofing", quoted_total=17000.50)
+    assert "error" not in res, res
+    assert res["quoted_total"] == "17000.50"
+    assert res["total_discrepancy"] == "-90.50", res["total_discrepancy"]
+
+
 def test_errors():
     r = evaluate("   ", "10001")
     assert r["error"] == "empty_estimate" and r["reason"]

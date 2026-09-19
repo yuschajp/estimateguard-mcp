@@ -15,9 +15,10 @@ import observations
 
 
 class _FakeCursor:
-    def __init__(self, result=None, exc=None):
-        self._result = result
+    def __init__(self, results=None, exc=None):
+        self._results = list(results or [])
         self._exc = exc
+        self.statements = []
 
     def __enter__(self):
         return self
@@ -25,14 +26,15 @@ class _FakeCursor:
     def __exit__(self, *a):
         return False
 
-    def execute(self, sql):
-        assert "estimate_observations" in sql
+    def execute(self, sql, params=None):
+        self.statements.append(sql)
         assert "line_description" not in sql, "health must not read row content"
+        assert "unit_price" not in sql, "health must not read row content"
         if self._exc is not None:
             raise self._exc
 
     def fetchone(self):
-        return self._result
+        return self._results.pop(0) if self._results else None
 
 
 class _FakeConn:
@@ -41,6 +43,9 @@ class _FakeConn:
 
     def cursor(self):
         return self._cursor
+
+    def commit(self):
+        pass
 
     def close(self):
         pass
@@ -92,7 +97,8 @@ def _with_env(dsn_value):
 
 def test_db_status_reports_counts_and_timestamp():
     ts = datetime(2026, 9, 19, 12, 0, 0, tzinfo=timezone.utc)
-    fake = _FakePsycopg(cursor=_FakeCursor(result=(7, ts)))
+    cursor = _FakeCursor(results=[(7,), (ts,)])
+    fake = _FakePsycopg(cursor=cursor)
     real, restore = _swap_psycopg(fake), _with_env("postgresql://fake/db")
     try:
         st = observations.db_status()
@@ -107,8 +113,45 @@ def test_db_status_reports_counts_and_timestamp():
     assert set(st) == {"connected", "observation_rows", "last_write_at"}
 
 
+def test_db_status_never_table_scans_in_steady_state():
+    # The steady-state probe must not run count(*) over the observations
+    # table: health checks must not get slower as the corpus grows.
+    ts = datetime(2026, 9, 19, 12, 0, 0, tzinfo=timezone.utc)
+    cursor = _FakeCursor(results=[(1234567,), (ts,)])
+    fake = _FakePsycopg(cursor=cursor)
+    real, restore = _swap_psycopg(fake), _with_env("postgresql://fake/db")
+    try:
+        st = observations.db_status()
+    finally:
+        observations.psycopg = real
+        restore()
+    assert st["observation_rows"] == 1234567
+    scans = [s for s in cursor.statements if "count(*)" in s.lower()]
+    assert not scans, f"steady-state health ran a table scan: {scans}"
+
+
+def test_db_status_seeds_counter_when_missing():
+    # First health check before any write on this deploy: the counter row is
+    # absent, so the probe seeds it with one exact count, then uses it.
+    ts = datetime(2026, 9, 19, 12, 0, 0, tzinfo=timezone.utc)
+    cursor = _FakeCursor(results=[None, (5,), (ts,)])
+    fake = _FakePsycopg(cursor=cursor)
+    real, restore = _swap_psycopg(fake), _with_env("postgresql://fake/db")
+    try:
+        st = observations.db_status()
+    finally:
+        observations.psycopg = real
+        restore()
+    assert st["connected"] is True
+    assert st["observation_rows"] == 5, st
+    assert st["last_write_at"] == "2026-09-19T12:00:00+00:00"
+    seeds = [s for s in cursor.statements if "count(*)" in s.lower()]
+    assert len(seeds) == 1, f"expected exactly one seeding count, got: {seeds}"
+
+
 def test_db_status_null_timestamp_when_empty():
-    fake = _FakePsycopg(cursor=_FakeCursor(result=(0, None)))
+    cursor = _FakeCursor(results=[(0,), (None,)])
+    fake = _FakePsycopg(cursor=cursor)
     real, restore = _swap_psycopg(fake), _with_env("postgresql://fake/db")
     try:
         st = observations.db_status()

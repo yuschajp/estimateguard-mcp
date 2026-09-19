@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from fastmcp import FastMCP
@@ -236,6 +237,18 @@ def evaluate_estimate(
     trade: Optional[str] = None,
     quoted_total: Optional[float] = None,
 ) -> dict:
+    # Input boundary: the JSON number arrives as a Python float. Convert to
+    # Decimal immediately -- via str() so binary-float representation
+    # artifacts can't leak in -- so no float ever enters the computation
+    # path. evaluate() re-validates the Decimal (bool / range checks).
+    if quoted_total is not None and not isinstance(quoted_total, bool):
+        try:
+            quoted_total = Decimal(str(quoted_total))
+        except (InvalidOperation, ValueError):
+            return {
+                "error": "invalid_quoted_total",
+                "reason": "quoted_total must be a number, for example 17500.",
+            }
     try:
         return _evaluate_estimate(
             estimate_text, zip, trade=trade, quoted_total=quoted_total

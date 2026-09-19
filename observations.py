@@ -41,7 +41,18 @@ CREATE INDEX IF NOT EXISTS idx_estimate_observations_trade_scope_zip3
     ON estimate_observations (trade, scope, zip3);
 CREATE INDEX IF NOT EXISTS idx_estimate_observations_observed_at
     ON estimate_observations (observed_at DESC);
+-- Maintained counter for the /health probe. A separate table on purpose:
+-- estimate_observations itself is never modified. The counter is seeded from
+-- the exact row count once, then incremented atomically alongside every
+-- insert, so health checks stay O(1) no matter how large the corpus grows.
+CREATE TABLE IF NOT EXISTS health_counters (
+    name TEXT PRIMARY KEY,
+    n BIGINT NOT NULL DEFAULT 0
+);
 """
+
+# Name of the counter row tracking estimate_observations.
+OBSERVATION_COUNTER_NAME = "estimate_observations"
 
 # Fields that may appear in an observation row. Anything else is dropped.
 ALLOWED_ROW_FIELDS = (
@@ -259,6 +270,17 @@ def _connect():
             _conn = psycopg.connect(dsn, connect_timeout=10)
             with _conn.cursor() as cur:
                 cur.execute(SCHEMA_SQL)
+                # One-time seed of the health counter from the exact row
+                # count, so rows written before this deploy are included.
+                # Runs once per process; the ON CONFLICT makes it a no-op
+                # afterwards. Later inserts increment the counter (see
+                # record_observations), so it can never drift.
+                cur.execute(
+                    "INSERT INTO health_counters (name, n) "
+                    "SELECT %s, count(*) FROM estimate_observations "
+                    "ON CONFLICT (name) DO NOTHING",
+                    (OBSERVATION_COUNTER_NAME,),
+                )
             _conn.commit()
         return _conn
     except Exception as exc:  # never break the tool on DB trouble
@@ -294,6 +316,18 @@ def record_observations(rows: list[dict]) -> dict:
                 """,
                 rows,
             )
+            # Maintain the /health counter in the same transaction as the
+            # inserts: atomic, so the counter can never drift from the
+            # table. The upsert is concurrency-safe (relative increment).
+            cur.execute(
+                """
+                INSERT INTO health_counters (name, n)
+                VALUES (%s, %s)
+                ON CONFLICT (name)
+                DO UPDATE SET n = health_counters.n + EXCLUDED.n
+                """,
+                (OBSERVATION_COUNTER_NAME, len(rows)),
+            )
         conn.commit()
         return {"inserted": len(rows)}
     except Exception as exc:
@@ -328,9 +362,13 @@ def db_status() -> dict:
     Always returns 200-safe data: on any failure the result is
     {"connected": False, "reason": ...} and this function never raises.
 
-    The query is a single aggregate: count(*) is exact (needed so callers
-    can detect that new writes landed) and max(observed_at) rides the
-    observed_at index. No row content is read.
+    The probe is O(1) in the size of the observation corpus, so health
+    checks never get slower as the corpus grows:
+    - observation_rows comes from a maintained counter row (single PK
+      lookup), incremented atomically alongside every insert;
+    - last_write_at is max(observed_at), which rides the
+      idx_estimate_observations_observed_at btree (backward index-only
+      scan). No count(*) over the table, ever, in the steady state.
     """
     if psycopg is None:
         return {"connected": False, "reason": "psycopg not installed"}
@@ -344,10 +382,33 @@ def db_status() -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT count(*) AS n, max(observed_at) AS last_write_at "
-                "FROM estimate_observations"
+                "SELECT n FROM health_counters WHERE name = %s",
+                (OBSERVATION_COUNTER_NAME,),
             )
-            n, last_write_at = cur.fetchone()
+            row = cur.fetchone()
+            if row is None:
+                # Counter not seeded yet (first health check before any
+                # write on this deploy): seed it with one exact count.
+                # Every later check is a PK lookup.
+                cur.execute(
+                    "INSERT INTO health_counters (name, n) "
+                    "SELECT %s, count(*) FROM estimate_observations "
+                    "ON CONFLICT (name) DO NOTHING "
+                    "RETURNING n",
+                    (OBSERVATION_COUNTER_NAME,),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    # Lost a race with a concurrent seeder; read its value.
+                    cur.execute(
+                        "SELECT n FROM health_counters WHERE name = %s",
+                        (OBSERVATION_COUNTER_NAME,),
+                    )
+                    row = cur.fetchone()
+            (n,) = row
+            cur.execute("SELECT max(observed_at) FROM estimate_observations")
+            (last_write_at,) = cur.fetchone()
+        conn.commit()
     except Exception as exc:
         # Table missing means nothing has been written yet; the database
         # itself is reachable, so report connected with zero rows.
