@@ -15,9 +15,11 @@ import observations
 
 
 class _FakeCursor:
-    def __init__(self, results=None, exc=None):
+    def __init__(self, results=None, exc=None, fail_first_n=None):
         self._results = list(results or [])
         self._exc = exc
+        # None + exc set -> raise on every execute; an int N -> first N only.
+        self._failures_left = fail_first_n
         self.statements = []
 
     def __enter__(self):
@@ -30,7 +32,11 @@ class _FakeCursor:
         self.statements.append(sql)
         assert "line_description" not in sql, "health must not read row content"
         assert "unit_price" not in sql, "health must not read row content"
-        if self._exc is not None:
+        if self._exc is not None and (
+            self._failures_left is None or self._failures_left > 0
+        ):
+            if self._failures_left is not None:
+                self._failures_left -= 1
             raise self._exc
 
     def fetchone(self):
@@ -128,6 +134,34 @@ def test_db_status_never_table_scans_in_steady_state():
     assert st["observation_rows"] == 1234567
     scans = [s for s in cursor.statements if "count(*)" in s.lower()]
     assert not scans, f"steady-state health ran a table scan: {scans}"
+
+
+def test_db_status_creates_counter_table_on_first_probe():
+    # Fresh deploy: health_counters does not exist yet, so the first
+    # SELECT raises UndefinedTable. The probe must create the table and
+    # seed it from the exact observation count -- not report zero rows.
+    # (This is the live bug from 2026-09-19: the first /health after
+    # deploy reported observation_rows 0 despite 15 stored rows.)
+    ts = datetime(2026, 9, 19, 12, 0, 0, tzinfo=timezone.utc)
+    cursor = _FakeCursor(
+        results=[(15,), (ts,)], exc=_UndefinedTable("no such table"), fail_first_n=1
+    )
+    fake = _FakePsycopg(cursor=cursor)
+    real, restore = _swap_psycopg(fake), _with_env("postgresql://fake/db")
+    try:
+        st = observations.db_status()
+    finally:
+        observations.psycopg = real
+        restore()
+    assert st == {
+        "connected": True,
+        "observation_rows": 15,
+        "last_write_at": "2026-09-19T12:00:00+00:00",
+    }, st
+    creates = [s for s in cursor.statements if "create table" in s.lower()]
+    assert len(creates) == 1, f"expected one CREATE TABLE, got: {creates}"
+    seeds = [s for s in cursor.statements if "count(*)" in s.lower()]
+    assert len(seeds) == 1, f"expected exactly one seeding count, got: {seeds}"
 
 
 def test_db_status_seeds_counter_when_missing():

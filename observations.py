@@ -369,6 +369,10 @@ def db_status() -> dict:
     - last_write_at is max(observed_at), which rides the
       idx_estimate_observations_observed_at btree (backward index-only
       scan). No count(*) over the table, ever, in the steady state.
+
+    The counter table is created and seeded here on first use (one exact
+    count), because this probe opens its own connection and cannot rely
+    on the write path having run yet on a fresh deploy.
     """
     if psycopg is None:
         return {"connected": False, "reason": "psycopg not installed"}
@@ -381,20 +385,32 @@ def db_status() -> dict:
         return {"connected": False, "reason": type(exc).__name__}
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT n FROM health_counters WHERE name = %s",
-                (OBSERVATION_COUNTER_NAME,),
-            )
-            row = cur.fetchone()
+            try:
+                cur.execute(
+                    "SELECT n FROM health_counters WHERE name = %s",
+                    (OBSERVATION_COUNTER_NAME,),
+                )
+                row = cur.fetchone()
+            except Exception as exc:
+                if not _is_undefined_table(exc):
+                    raise
+                row = None  # counter table does not exist yet
             if row is None:
-                # Counter not seeded yet (first health check before any
-                # write on this deploy): seed it with one exact count.
-                # Every later check is a PK lookup.
+                # First probe on this deploy (or fresh database): create
+                # the counter table and seed it with one exact count.
+                # Every later probe is a single PK lookup.
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS health_counters ("
+                    "name TEXT PRIMARY KEY, n BIGINT NOT NULL DEFAULT 0)"
+                )
                 cur.execute(
                     "INSERT INTO health_counters (name, n) "
                     "SELECT %s, count(*) FROM estimate_observations "
-                    "ON CONFLICT (name) DO NOTHING "
-                    "RETURNING n",
+                    "ON CONFLICT (name) DO NOTHING",
+                    (OBSERVATION_COUNTER_NAME,),
+                )
+                cur.execute(
+                    "SELECT n FROM health_counters WHERE name = %s",
                     (OBSERVATION_COUNTER_NAME,),
                 )
                 row = cur.fetchone()
