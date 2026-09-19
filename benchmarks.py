@@ -204,7 +204,9 @@ _STOP_TOKENS = frozenset(
 
 
 def _content_tokens(text: str) -> set[str]:
-    toks = re.findall(r"[a-z0-9]+", (text or "").lower())
+    # "2,000" must tokenize as one number, matching a hint's "2000".
+    squashed = re.sub(r"(?<=\d),(?=\d)", "", text or "")
+    toks = re.findall(r"[a-z0-9]+", squashed.lower())
     return {_TOKEN_SYNONYMS.get(t, t) for t in toks if t not in _STOP_TOKENS}
 
 

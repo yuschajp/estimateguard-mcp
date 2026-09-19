@@ -289,6 +289,26 @@ def test_lookups_degrade_without_db():
     assert benchmarks.count_rows() is None
 
 
+def test_content_tokens_squash_thousands_commas():
+    # "2,000" in a service type must match a hint's "2000".
+    assert benchmarks._content_tokens("Asphalt Shingles (2,000 sq ft)") == {
+        "asphalt", "shingle", "2000",
+    }
+
+
+def test_resolve_candidates_comma_number_hint():
+    cands = [
+        {"service_type": "Asphalt Shingles (1,500 sq ft)"},
+        {"service_type": "Asphalt Shingles (2,000 sq ft)"},
+        {"service_type": "Asphalt Shingles (2,500 sq ft)"},
+    ]
+    winner = benchmarks.resolve_candidates(cands, "asphalt shingle 2000 sqft")
+    assert winner is not None
+    assert winner["service_type"] == "Asphalt Shingles (2,000 sq ft)"
+    # A hint that fits two candidates stays ambiguous.
+    assert benchmarks.resolve_candidates(cands, "asphalt shingle") is None
+
+
 def test_scaffolding_fallback_is_honestly_tagged():
     """Offline fallback rows (incl. the old $425/square NYC roofing row)
     must never be presentable as observed job data."""
