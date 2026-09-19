@@ -33,7 +33,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ```sh
 .venv/bin/python tests/test_live.py https://<service>/mcp
-# or: ESTIMATEGURD_MCP_URL=https://<service>/mcp .venv/bin/python tests/test_live.py
+# or: ESTIMATEGUARD_MCP_URL=https://<service>/mcp .venv/bin/python tests/test_live.py
 ```
 
 Covers: valid input, unknown ZIP, malformed input.
