@@ -27,6 +27,7 @@ from costdata import (
     ZIP_RE,
     bases_for_trade_zip,
     cents as _cents,
+    count_matches,
     describe_options,
     normalize_basis,
     normalize_trade,
@@ -118,12 +119,9 @@ def _lookup(trade: str, scope: str, zip_code: str) -> CostRangeResult:
         return _no_range(f"'{zip_norm}' doesn't look like a 5-digit US ZIP code.")
 
     trade_norm = normalize_trade(trade)
+    # A scope that doesn't declare a pricing unit ("asphalt shingle
+    # 2000 sqft") searches every basis; the hint disambiguates.
     basis = normalize_basis(scope)
-    if basis is None:
-        return _no_range(
-            f"I couldn't tell how '{scope.strip()}' is priced. "
-            "Try 'per square', 'per sq ft', or 'flat'."
-        )
 
     row = seed_row(trade_norm, basis, zip_norm, hint=scope)
     if row is not None:
@@ -163,10 +161,18 @@ def _lookup(trade: str, scope: str, zip_code: str) -> CostRangeResult:
     if options:
         shown = "; ".join(options[:6])
         more = f" (+{len(options) - 6} more)" if len(options) > 6 else ""
+        n = count_matches(trade_norm, basis, zip_norm, scope)
+        if n is None or n > 1:
+            # Ambiguous (or offline scaffolding mode): list the options.
+            return _no_range(
+                f"For {trade.strip()} near ZIP {zip_norm}, '{scope.strip()}' matches "
+                f"several benchmarks: {shown}{more}. Name the specific job and I'll "
+                "look it up — I won't guess which one you mean."
+            )
         return _no_range(
-            f"For {trade.strip()} near ZIP {zip_norm}, '{scope.strip()}' matches "
-            f"several benchmarks: {shown}{more}. Name the specific job and I'll "
-            "look it up — I won't guess which one you mean."
+            f"We don't have a {trade.strip()} benchmark matching "
+            f"'{scope.strip()}' near ZIP {zip_norm}, so we won't guess at a "
+            f"range. What we do have: {shown}{more}."
         )
 
     same_trade_zip = sorted(

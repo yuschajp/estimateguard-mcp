@@ -393,6 +393,7 @@ def _row_to_result(db_row: tuple) -> dict:
         "median": avg,
         "high": high,
         "unit": None,  # filled by costdata from BASIS_LABEL
+        "basis": basis,
         "sample_size": sample_size,
         "as_of_date": as_of_date.isoformat() if hasattr(as_of_date, "isoformat") else str(as_of_date),
         "provenance": provenance,
@@ -407,8 +408,30 @@ def _row_to_result(db_row: tuple) -> dict:
     }
 
 
-def find_candidates(trade: str, basis: str, zip3: str) -> list[dict]:
-    """All seed rows for (region, trade, basis). Empty list when none/DB down."""
+def count_winners(candidates: list[dict], hint: Optional[str]) -> int:
+    """How many candidates the hint uniquely identifies (0, 1, or more)."""
+    if not candidates:
+        return 0
+    if len(candidates) == 1:
+        return 1
+    hint_toks = _content_tokens(hint) if hint else set()
+    if not hint_toks:
+        return len(candidates)
+    return sum(
+        1 for c in candidates if hint_toks <= _content_tokens(c["service_type"])
+    )
+
+
+def find_candidates(
+    trade: str, basis: Optional[str], zip3: str
+) -> list[dict]:
+    """All seed rows for (region, trade), optionally filtered to one basis.
+
+    ``basis=None`` searches every basis: used when the scope names a job
+    ("asphalt shingle 2000 sqft") without declaring a pricing unit, so the
+    hint can disambiguate across per-sqft and flat rows alike.
+    Empty list when none/DB down.
+    """
     region = region_for_zip3(zip3)
     if region is None:
         return []
@@ -417,19 +440,34 @@ def find_candidates(trade: str, basis: str, zip3: str) -> list[dict]:
         return []
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT region, zip3, trade, service_type, basis,
-                       low_price, avg_price, high_price,
-                       labor_rate_low, labor_rate_high,
-                       permit_cost_low, permit_cost_high,
-                       sample_size, provenance, as_of_date
-                FROM benchmark_ranges
-                WHERE region = %s AND trade = %s AND basis = %s
-                ORDER BY service_type
-                """,
-                (region, trade, basis),
-            )
+            if basis is None:
+                cur.execute(
+                    """
+                    SELECT region, zip3, trade, service_type, basis,
+                           low_price, avg_price, high_price,
+                           labor_rate_low, labor_rate_high,
+                           permit_cost_low, permit_cost_high,
+                           sample_size, provenance, as_of_date
+                    FROM benchmark_ranges
+                    WHERE region = %s AND trade = %s
+                    ORDER BY service_type
+                    """,
+                    (region, trade),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT region, zip3, trade, service_type, basis,
+                           low_price, avg_price, high_price,
+                           labor_rate_low, labor_rate_high,
+                           permit_cost_low, permit_cost_high,
+                           sample_size, provenance, as_of_date
+                    FROM benchmark_ranges
+                    WHERE region = %s AND trade = %s AND basis = %s
+                    ORDER BY service_type
+                    """,
+                    (region, trade, basis),
+                )
             return [_row_to_result(r) for r in cur.fetchall()]
     except Exception as exc:
         print(f"[benchmarks] lookup failed: {exc}", file=sys.stderr, flush=True)
@@ -437,9 +475,9 @@ def find_candidates(trade: str, basis: str, zip3: str) -> list[dict]:
 
 
 def lookup(
-    trade: str, basis: str, zip3: str, hint: Optional[str] = None
+    trade: str, basis: Optional[str], zip3: str, hint: Optional[str] = None
 ) -> Optional[dict]:
-    """One seed row for (trade, basis, zip), disambiguated by hint."""
+    """One seed row for (trade, zip), disambiguated by hint across bases."""
     return resolve_candidates(find_candidates(trade, basis, zip3), hint)
 
 

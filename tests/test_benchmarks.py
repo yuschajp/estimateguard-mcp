@@ -338,5 +338,102 @@ def _main():
     sys.exit(1 if failed else 0)
 
 
+def test_count_winners():
+    cands = [
+        {"service_type": "Asphalt Shingle (1000 sqft)"},
+        {"service_type": "Asphalt Shingle (2000 sqft)"},
+    ]
+    assert benchmarks.count_winners([], "shingle") == 0
+    assert benchmarks.count_winners(cands[:1], "anything") == 1
+    assert benchmarks.count_winners(cands, "asphalt shingle 2000 sqft") == 1
+    assert benchmarks.count_winners(cands, "asphalt shingle") == 2
+    assert benchmarks.count_winners(cands, "water heater") == 0
+
+
+def _canned_conn():
+    rows = [
+        ("Denver", None, "roofing", "Asphalt Shingle (2000 sqft)", "flat",
+         Decimal("8600"), Decimal("11000"), Decimal("13600"),
+         None, None, None, None, 0, "prov", "2026-08-03"),
+        ("Denver", None, "roofing", "Cost per Sq Ft (Asphalt)", "per_sqft",
+         None, Decimal("5.50"), Decimal("7"),
+         None, None, None, None, 0, "prov", "2026-08-03"),
+    ]
+
+    class Cur(_FakeCursor):
+        def execute(self, sql, params=None):
+            self.statements.append((sql, params))
+            return self
+
+        def fetchall(self):
+            params = self.statements[-1][1]
+            basis = params[2] if len(params) == 3 else None
+            return [
+                r for r in rows
+                if r[0] == params[0] and r[2] == params[1]
+                and (basis is None or r[4] == basis)
+            ]
+
+    class Conn(_FakeConn):
+        def __init__(self):
+            self.cur = Cur()
+            self.commits = 0
+
+    return Conn()
+
+
+def test_lookup_cross_basis_finds_sized_flat_row():
+    conn = _canned_conn()
+    real_connect = benchmarks._connect
+    benchmarks._connect = lambda: conn  # noqa: E731
+    try:
+        # "2000 sqft" is a size hint, not a per-unit pricing declaration:
+        # the flat project-price row wins across bases.
+        row = benchmarks.lookup(
+            "roofing", None, "802", "asphalt shingle 2000 sqft"
+        )
+        assert row is not None
+        assert row["service_type"] == "Asphalt Shingle (2000 sqft)"
+        assert row["basis"] == "flat"
+        assert row["median"] == Decimal("11000")
+        # A basis-constrained search with a single candidate returns it:
+        # one candidate means nothing to disambiguate between.
+        row = benchmarks.lookup("roofing", "per_sqft", "802", "cost per sq ft")
+        assert row is not None
+        assert row["median"] == Decimal("5.50")
+    finally:
+        benchmarks._connect = real_connect
+
+
+def test_normalize_basis_is_conservative():
+    import costdata  # noqa
+
+    # Explicit per-unit pricing phrases declare a basis...
+    assert costdata.normalize_basis("per sq ft") == "per_sqft"
+    assert costdata.normalize_basis("What is the cost per square?") == "per_square"
+    assert costdata.normalize_basis("lump sum") == "flat"
+    # ...but a bare size mention is a hint, not a pricing basis.
+    assert costdata.normalize_basis("asphalt shingle 2000 sqft") is None
+    assert costdata.normalize_basis("full hvac system replacement") is None
+    assert costdata.normalize_basis("water heater replacement") is None
+
+
+def test_seed_row_labels_unit_from_row_basis():
+    import costdata  # noqa
+
+    conn = _canned_conn()
+    real_connect = benchmarks._connect
+    benchmarks._connect = lambda: conn  # noqa: E731
+    try:
+        row = costdata.seed_row(
+            "roofing", None, "80202", hint="asphalt shingle 2000 sqft"
+        )
+        assert row is not None
+        assert row["unit"] == "per project (flat price)"
+        assert row["sample_size"] == 0
+    finally:
+        benchmarks._connect = real_connect
+
+
 if __name__ == "__main__":
     _main()

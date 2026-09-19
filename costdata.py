@@ -200,21 +200,26 @@ def normalize_trade(trade: str) -> str:
 
 
 def normalize_basis(scope: str) -> Optional[str]:
-    """Map a free-text scope/unit to a pricing basis, or None."""
+    """Map a free-text scope to a pricing basis, or None.
+
+    Conservative on purpose: a per-unit basis is only declared when the
+    scope phrases pricing per unit ("per sq ft", "per square", "$/sqft").
+    A bare size mention ("asphalt shingle 2000 sqft") is a hint about the
+    job, not a pricing basis -- returning None lets the lookup search every
+    basis and the hint disambiguate across them.
+    """
     text = scope.strip().lower().replace("  ", " ")
     if text in _BASIS_SYNONYMS:
         return _BASIS_SYNONYMS[text]
-    # Fall back to keyword matching for longer descriptions.
-    if "square foot" in text or "sq ft" in text or "sqft" in text:
+    if re.search(r"per\s+(sq\.?\s*ft|sqft|square\s*foot)", text):
         return BASIS_PER_SQFT
-    if "square" in text:
+    if "/sq" in text or "a square foot" in text:
+        return BASIS_PER_SQFT
+    if re.search(r"per\s+(roofing\s+)?squares?", text):
         return BASIS_PER_SQUARE
     if any(
-        word in text
-        for word in (
-            "flat", "project", "lump", "fixed", "installed", "replacement",
-            "remodel", "upgrade", "repaint",
-        )
+        phrase in text
+        for phrase in ("lump sum", "per project", "fixed price", "flat rate")
     ):
         return BASIS_FLAT
     return None
@@ -242,27 +247,34 @@ def _scaffold_row(row: dict) -> dict:
 
 
 def seed_row(
-    trade: str, basis: str, zip_code: str, hint: Optional[str] = None
+    trade: str, basis: Optional[str], zip_code: str, hint: Optional[str] = None
 ) -> Optional[dict]:
-    """Raw seed row for a normalized (trade, basis, zip), or None.
+    """Raw seed row for a normalized (trade, zip), or None.
 
-    When the benchmark database is reachable it is authoritative: rows come
-    from the imported seed benchmarks with ``sample_size=0`` and a
-    provenance string, and a miss stays a miss (no scaffolding fallback).
-    When the database is unreachable (local dev / tests), the legacy
-    in-memory scaffolding table answers instead.
+    ``basis=None`` searches every pricing basis and lets the hint
+    disambiguate across them. When the benchmark database is reachable it
+    is authoritative: rows come from the imported seed benchmarks with
+    ``sample_size=0`` and a provenance string, and a miss stays a miss (no
+    scaffolding fallback). When the database is unreachable (local dev /
+    tests), the legacy in-memory scaffolding table answers instead.
     """
-    if basis is not None and benchmarks.db_reachable():
+    if benchmarks.db_reachable():
         row = benchmarks.lookup(trade, basis, _zip3_of(zip_code), hint)
         if row is not None:
             row = dict(row)
-            row["unit"] = BASIS_LABEL.get(basis, row.get("unit"))
+            # The row's own basis labels the unit; fall back to the
+            # requested basis only when the row doesn't name one.
+            row["unit"] = BASIS_LABEL.get(
+                row.get("basis") or basis, row.get("unit")
+            )
         return row
     raw = SEED.get((trade, basis, zip_code))
     return _scaffold_row(raw) if raw is not None else None
 
 
-def describe_options(trade: str, basis: str, zip_code: str) -> list[str]:
+def describe_options(
+    trade: str, basis: Optional[str], zip_code: str
+) -> list[str]:
     """Human-readable service-type options for an ambiguous (trade, basis).
 
     Used to explain a miss honestly instead of guessing. Empty when there
@@ -275,6 +287,20 @@ def describe_options(trade: str, basis: str, zip_code: str) -> list[str]:
         f"scaffolding {BASIS_LABEL.get(b, b)}"
         for b in bases_for_trade_zip(trade, zip_code)
     ]
+
+
+def count_matches(
+    trade: str, basis: Optional[str], zip_code: str, hint: Optional[str]
+) -> Optional[int]:
+    """How many seed rows the hint identifies (0, 1, or more).
+
+    None when the database is unreachable; the caller then falls back to
+    the scaffolding behavior.
+    """
+    if not benchmarks.db_reachable():
+        return None
+    cands = benchmarks.find_candidates(trade, basis, _zip3_of(zip_code))
+    return benchmarks.count_winners(cands, hint)
 
 
 def bases_for_trade_zip(trade: str, zip_code: str) -> list[str]:
