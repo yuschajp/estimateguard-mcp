@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py ./
+COPY server.py costdata.py estimate_eval.py ./
 
 # Render injects PORT; default to 8000 for local runs.
 ENV PORT=8000
