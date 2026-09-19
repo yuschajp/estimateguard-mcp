@@ -25,6 +25,12 @@ from costdata import (
     seed_row,
     trade_has_coverage,
 )
+from observations import (
+    build_rows,
+    log_strip_counts,
+    record_observations,
+    strip_pii,
+)
 
 MAX_INPUT_CHARS = 50_000
 VARIANCE_HIGH = Decimal("0.25")  # more than 25% above median -> "high"
@@ -329,6 +335,13 @@ def evaluate(
             f"'{zip_code}' doesn't look like a 5-digit US ZIP code.",
         )
     zip_norm = zip_code.strip()
+
+    # ---- PII strip: during parsing, before any observation is built ----
+    # The parser below only ever sees the cleaned text, so descriptions can
+    # never carry names, addresses, phones, emails, contractor identifiers
+    # or license numbers into the response or the observation store.
+    estimate_text, strip_counts = strip_pii(estimate_text)
+    log_strip_counts(strip_counts)
 
     quoted_dec: Optional[Decimal] = None
     if quoted_total is not None:
@@ -676,5 +689,23 @@ def evaluate(
         resp["findings"] = resp["findings"][:4]
         resp["calculation_trail"] = trim_trail(trail.entries(), 20)
         resp["coverage_note"] += " (Response trimmed to fit the size limit.)"
+
+    # ---- observation store: one whitelisted, PII-free row per line ----
+    # Built from Decimal recomputations (never raw literals, never raw text).
+    # record_observations never raises; a DB outage must not fail the tool.
+    obs_lines = [
+        {
+            "description": line["description"],
+            "quantity": str(line["qty_dec"]),
+            "unit": line["unit"],
+            "unit_price": str(line["price_dec"]),
+            "computed_line_total": str(line["computed_dec"]),
+            "scope": basis_from_unit(line["unit"]) or "",
+        }
+        for line in lines
+    ]
+    record_observations(
+        build_rows(zip_code=zip_norm, trade=trade_norm or "", lines=obs_lines)
+    )
 
     return resp
