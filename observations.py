@@ -307,3 +307,62 @@ def record_observations(rows: list[dict]) -> dict:
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _is_undefined_table(exc: Exception) -> bool:
+    """True when the failure is just 'table does not exist yet'."""
+    if getattr(exc, "sqlstate", None) == "42P01":
+        return True
+    try:
+        from psycopg import errors as pg_errors
+
+        return isinstance(exc, pg_errors.UndefinedTable)
+    except Exception:
+        return False
+
+
+def db_status() -> dict:
+    """Cheap, non-raising database probe for the /health endpoint.
+
+    Returns counts and a timestamp only -- never observation content.
+    Always returns 200-safe data: on any failure the result is
+    {"connected": False, "reason": ...} and this function never raises.
+
+    The query is a single aggregate: count(*) is exact (needed so callers
+    can detect that new writes landed) and max(observed_at) rides the
+    observed_at index. No row content is read.
+    """
+    if psycopg is None:
+        return {"connected": False, "reason": "psycopg not installed"}
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        return {"connected": False, "reason": "DATABASE_URL is not set"}
+    try:
+        conn = psycopg.connect(dsn, connect_timeout=5)
+    except Exception as exc:
+        return {"connected": False, "reason": type(exc).__name__}
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) AS n, max(observed_at) AS last_write_at "
+                "FROM estimate_observations"
+            )
+            n, last_write_at = cur.fetchone()
+    except Exception as exc:
+        # Table missing means nothing has been written yet; the database
+        # itself is reachable, so report connected with zero rows.
+        if _is_undefined_table(exc):
+            return {"connected": True, "observation_rows": 0, "last_write_at": None}
+        return {"connected": False, "reason": type(exc).__name__}
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    return {
+        "connected": True,
+        "observation_rows": int(n),
+        "last_write_at": (
+            last_write_at.isoformat() if last_write_at is not None else None
+        ),
+    }

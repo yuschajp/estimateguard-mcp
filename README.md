@@ -5,7 +5,11 @@ Scaffolding: prices come from a hardcoded seed table in `costdata.py`, not a
 real dataset.
 
 - MCP endpoint: `https://<service>/mcp` (streamable HTTP, no auth)
-- Health check: `GET https://<service>/health` -> `{"status":"ok","service":"estimateguard-mcp"}`
+- Health check: `GET https://<service>/health` ->
+  `{"status":"ok","service":"estimateguard-mcp","db":{"connected":true,"observation_rows":12,"last_write_at":"2026-09-19T20:15:00+00:00"}}`.
+  `db` carries counts and a timestamp only, never observation content. If the
+  database is unreachable the endpoint still returns 200 with
+  `{"connected":false,"reason":"<error type>"}`.
 
 ## Tool: get_cost_range
 

@@ -13,6 +13,7 @@ Rules enforced here:
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Optional
 
@@ -31,6 +32,7 @@ from costdata import (
     seed_row,
 )
 from estimate_eval import evaluate as _evaluate_estimate
+from observations import db_status
 
 mcp = FastMCP("EstimateGuard")
 
@@ -170,7 +172,13 @@ def evaluate_estimate(
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health(request: Request) -> JSONResponse:
-    return JSONResponse({"status": "ok", "service": "estimateguard-mcp"})
+    # db_status() never raises: a dead database yields
+    # {"connected": False, "reason": ...} and this stays a 200.
+    # Run in a thread so the sync psycopg probe never blocks the loop.
+    db = await asyncio.to_thread(db_status)
+    return JSONResponse(
+        {"status": "ok", "service": "estimateguard-mcp", "db": db}
+    )
 
 
 app = mcp.http_app(transport="http", path="/mcp")
