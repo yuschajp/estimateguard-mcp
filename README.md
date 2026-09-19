@@ -25,6 +25,13 @@ US ZIP code.
 
 Input: `trade` (string), `scope` (string), `zip` (string)
 
+The scope can declare a pricing unit ("per square", "per sq ft") or just
+name the job ("asphalt shingle 2000 sqft", "full hvac system replacement").
+A declared unit constrains the search to that basis; a bare job description
+searches every basis and the description disambiguates across them, so a
+"2000 sqft" project matches the flat project-price row rather than a
+per-square-foot row.
+
 Output: `low`, `median`, `high` (USD decimal strings, rounded to cents),
 `unit`, `sample_size`, `as_of_date`, `provenance` (where the figures came
 from), `service_type` (the specific benchmarked job), `region` (the metro
