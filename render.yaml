@@ -2,6 +2,6 @@ services:
   - type: web
     name: estimateguard-mcp
     runtime: docker
-    plan: free
+    plan: starter
     healthCheckPath: /health
     dockerfilePath: ./Dockerfile
