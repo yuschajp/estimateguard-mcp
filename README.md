@@ -1,8 +1,8 @@
 # EstimateGuard MCP
 
-Minimal remote MCP server exposing one tool, `get_cost_range`, over
-streamable HTTP. Scaffolding: prices come from a hardcoded seed table in
-`server.py`, not a real dataset.
+Minimal remote MCP server exposing two tools over streamable HTTP.
+Scaffolding: prices come from a hardcoded seed table in `costdata.py`, not a
+real dataset.
 
 - MCP endpoint: `https://<service>/mcp` (streamable HTTP, no auth)
 - Health check: `GET https://<service>/health` -> `{"status":"ok","service":"estimateguard-mcp"}`
@@ -19,6 +19,36 @@ Output: `low`, `median`, `high` (USD decimal strings, rounded to cents),
 
 When there is no data for the trade + ZIP, all price fields are null and
 `reason` explains why. The tool never guesses.
+
+## Tool: evaluate_estimate
+
+**Evaluate Contractor Estimate** — check a contractor's written estimate line
+by line.
+
+Input: `estimate_text` (string, required), `zip` (string, required),
+`trade` (string, optional — inferred when absent), `quoted_total` (number,
+optional).
+
+Each priced line should look like one of these:
+
+```
+Install architectural shingles 20 squares @ $425.00/square = $8,500.00
+20 squares of tear-off @ $350.00 = $7,000.00
+```
+
+The parser extracts only descriptions, quantities, units, unit prices, and
+stated line totals. Python then recomputes every number (Decimal throughout,
+rounded to cents at output only): line totals, the subtotal, per-line variance
+against the regional benchmark, and the overall rating. If a printed line total
+disagrees with quantity × unit price, the recomputed value is authoritative
+and the mismatch is reported as a finding — never silently corrected.
+
+Output: `parsed_line_items`, `computed_total`, `quoted_total`,
+`total_discrepancy`, `per_line_variance` (flags `low`/`normal`/`high`/`no_data`,
+truncated to the 15 largest-dollar lines), `overall_flag`
+(`below_range`/`within_range`/`above_range`/`insufficient_data`), `findings`
+(plain homeowner language), `calculation_trail` (every computation step), and
+`coverage_note`. Errors return `{"error", "reason"}` instead.
 
 ## Run locally
 
@@ -37,6 +67,12 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Covers: valid input, unknown ZIP, malformed input.
+
+Unit tests for the estimate evaluator (no network):
+
+```sh
+python3 tests/test_evaluate.py
+```
 
 ## Deploy (Render)
 
