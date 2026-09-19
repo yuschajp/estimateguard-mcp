@@ -74,6 +74,29 @@ Unit tests for the estimate evaluator (no network):
 python3 tests/test_evaluate.py
 ```
 
+Unit tests for the observation store's PII stripping (no network, no DB):
+
+```sh
+python3 tests/test_observations.py
+```
+
+## Observation store (Postgres)
+
+Every successful `evaluate_estimate` call writes one row per line item to
+the `estimate_observations` table. Only whitelisted, PII-free fields are
+stored: `observed_at`, `zip3`, `trade`, `scope`, `line_description`,
+`quantity`, `unit`, `unit_price`, `computed_line_total`.
+
+PII (names, street addresses, phones, emails, contractor business names,
+license numbers) is stripped from the estimate text during parsing, before
+any observation row is built. Strip counts per category are logged for
+auditing. The raw estimate text is never stored.
+
+The table is indexed on `(trade, scope, zip3)` for future benchmark
+aggregation, plus `observed_at`. Set `DATABASE_URL` on the service to
+enable it; if the database is unreachable the tool still returns its
+result and the failure is logged server-side.
+
 ## Deploy (Render)
 
 Via blueprint (`render.yaml`): New > Blueprint > point at this repo.
