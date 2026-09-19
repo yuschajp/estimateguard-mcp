@@ -1,8 +1,15 @@
 # EstimateGuard MCP
 
 Minimal remote MCP server exposing two tools over streamable HTTP.
-Scaffolding: prices come from a hardcoded seed table in `costdata.py`, not a
-real dataset.
+
+Cost figures come from a Postgres seed-benchmark table (`benchmark_ranges`,
+271 city-level rows across 12 metros and 5 trades, imported from the legacy
+estimate-reviewer's published-guide research). Every seed row carries
+`sample_size=0` and a `provenance` string: seed benchmarks are published
+guide data, never observed EstimateGuard jobs, and the table is never
+aggregated with `estimate_observations`. When the database is unreachable
+(local dev / tests), a hardcoded scaffolding table in `costdata.py` answers
+instead; its rows are tagged as illustrative, not observed.
 
 - MCP endpoint: `https://<service>/mcp` (streamable HTTP, no auth)
 - Health check: `GET https://<service>/health` ->
@@ -19,10 +26,18 @@ US ZIP code.
 Input: `trade` (string), `scope` (string), `zip` (string)
 
 Output: `low`, `median`, `high` (USD decimal strings, rounded to cents),
-`unit`, `sample_size`, `as_of_date`, and `reason` (null on success).
+`unit`, `sample_size`, `as_of_date`, `provenance` (where the figures came
+from), `service_type` (the specific benchmarked job), `region` (the metro
+the benchmark covers — city-level data is never presented as ZIP-level
+data), `labor_rate_low`/`labor_rate_high` and `permit_cost_low`/
+`permit_cost_high` (when the source published them), and `reason` (null on
+success).
 
 When there is no data for the trade + ZIP, all price fields are null and
-`reason` explains why. The tool never guesses.
+`reason` explains why. When a scope matches several benchmarks (e.g.
+"flat roof" matching every flat roofing job in the metro), the reason lists
+the options instead of guessing. The tool never guesses and never
+interpolates between cities.
 
 ## Tool: evaluate_estimate
 
@@ -70,7 +85,14 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 # or: ESTIMATEGUARD_MCP_URL=https://<service>/mcp .venv/bin/python tests/test_live.py
 ```
 
-Covers: valid input, unknown ZIP, malformed input.
+Covers: seed benchmark lookups (3 trades, 3 cities), an honest null for a
+basis with no data, an ambiguous scope, an unknown ZIP, and malformed input.
+
+Unit tests for the seed benchmarks (no network, no DB):
+
+```sh
+python3 tests/test_benchmarks.py
+```
 
 Unit tests for the estimate evaluator (no network):
 
@@ -83,6 +105,28 @@ Unit tests for the observation store's PII stripping (no network, no DB):
 ```sh
 python3 tests/test_observations.py
 ```
+
+## Seed benchmarks (Postgres)
+
+`migrations/001_benchmark_ranges.sql` creates the `benchmark_ranges` table
+(money is `NUMERIC`; the migration file is the single source of truth and is
+loaded by `benchmarks.py`). Import the vendored CSV
+(`data/benchmarks_7cities.csv`, byte-identical to the legacy
+estimate-reviewer's `COMPETITIVE_DATA_7_CITIES.csv`):
+
+```sh
+DATABASE_URL=postgres://... python3 scripts/import_benchmarks.py
+```
+
+The import upserts on `(region, trade, service_type)` — safe to rerun. The
+service also seeds automatically on first boot when the table is empty.
+
+Coverage: 12 metros (Atlanta, Boston, Chicago, Dallas-Fort Worth, Denver,
+Los Angeles, Miami, NYC, Phoenix, San Francisco, Seattle, Washington DC) ×
+5 trades (Electrical, HVAC, Kitchen Remodel, Plumbing, Roofing), 271 rows.
+HVAC has no rows for NYC or Seattle. Every row has `sample_size=0` and a
+`provenance` string naming its source; rows are stored at city level
+(`region`) and query ZIPs are routed to their metro for lookup only.
 
 ## Observation store (Postgres)
 

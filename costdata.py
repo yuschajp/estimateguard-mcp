@@ -11,8 +11,23 @@ import re
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
+import benchmarks
+
 CENT = Decimal("0.01")
 ZIP_RE = re.compile(r"^\d{5}$")
+
+
+def _zip3_of(zip_code: str) -> str:
+    digits = re.sub(r"\D", "", zip_code or "")
+    return digits[:3] if len(digits) >= 3 else ""
+
+
+# Provenance tag for the legacy in-memory scaffolding rows below. They are
+# illustrative values for offline use, never observed job data.
+SCAFFOLD_PROVENANCE = (
+    "Legacy scaffolding seed (illustrative values for offline use only). "
+    "Not observed EstimateGuard job data (sample_size is illustrative)."
+)
 
 # Pricing bases.
 BASIS_PER_SQUARE = "per_square"  # per roofing square (100 sq ft)
@@ -216,16 +231,61 @@ def basis_from_unit(unit: str) -> Optional[str]:
     return None
 
 
-def seed_row(trade: str, basis: str, zip_code: str) -> Optional[dict]:
-    """Raw seed row for a normalized (trade, basis, zip), or None."""
-    return SEED.get((trade, basis, zip_code))
+def _scaffold_row(row: dict) -> dict:
+    """Copy a scaffolding row with its honesty tag attached."""
+    tagged = dict(row)
+    tagged.setdefault("provenance", SCAFFOLD_PROVENANCE)
+    tagged.setdefault("service_type", None)
+    tagged.setdefault("region", None)
+    tagged.setdefault("source", "scaffolding")
+    return tagged
+
+
+def seed_row(
+    trade: str, basis: str, zip_code: str, hint: Optional[str] = None
+) -> Optional[dict]:
+    """Raw seed row for a normalized (trade, basis, zip), or None.
+
+    When the benchmark database is reachable it is authoritative: rows come
+    from the imported seed benchmarks with ``sample_size=0`` and a
+    provenance string, and a miss stays a miss (no scaffolding fallback).
+    When the database is unreachable (local dev / tests), the legacy
+    in-memory scaffolding table answers instead.
+    """
+    if basis is not None and benchmarks.db_reachable():
+        row = benchmarks.lookup(trade, basis, _zip3_of(zip_code), hint)
+        if row is not None:
+            row = dict(row)
+            row["unit"] = BASIS_LABEL.get(basis, row.get("unit"))
+        return row
+    raw = SEED.get((trade, basis, zip_code))
+    return _scaffold_row(raw) if raw is not None else None
+
+
+def describe_options(trade: str, basis: str, zip_code: str) -> list[str]:
+    """Human-readable service-type options for an ambiguous (trade, basis).
+
+    Used to explain a miss honestly instead of guessing. Empty when there
+    are no candidates at all.
+    """
+    if benchmarks.db_reachable():
+        cands = benchmarks.find_candidates(trade, basis, _zip3_of(zip_code))
+        return [f"{c['service_type']} ({c['region']})" for c in cands]
+    return [
+        f"scaffolding {BASIS_LABEL.get(b, b)}"
+        for b in bases_for_trade_zip(trade, zip_code)
+    ]
 
 
 def bases_for_trade_zip(trade: str, zip_code: str) -> list[str]:
     """Which pricing bases have seed data for this trade+zip."""
+    if benchmarks.db_reachable():
+        return benchmarks.bases_for(trade, _zip3_of(zip_code))
     return sorted({b for (t, b, z) in SEED if t == trade and z == zip_code})
 
 
 def trade_has_coverage(trade: str, zip_code: str) -> bool:
     """True when any seed data exists for this trade+zip."""
+    if benchmarks.db_reachable():
+        return benchmarks.has_coverage(trade, _zip3_of(zip_code))
     return any(True for (t, b, z) in SEED if t == trade and z == zip_code)

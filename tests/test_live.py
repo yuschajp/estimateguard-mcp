@@ -2,9 +2,11 @@
 """Exercise the live EstimateGuard MCP endpoint from outside the deploy environment.
 
 Covers:
-  1. valid input      -> a cost range, reason is null
-  2. unknown zip      -> nulls with an explicit reason
-  3. malformed input  -> nulls with an explicit reason
+  1-3. seed benchmark lookups -> a range with sample_size 0 + provenance
+  4.    no matching benchmark  -> nulls with an explicit reason (no guessing)
+  5.    ambiguous scope        -> nulls with the options listed
+  6.    unknown zip            -> nulls with an explicit reason
+  7.    malformed input        -> nulls with an explicit reason
 
 Usage:
     python tests/test_live.py https://<service>/mcp
@@ -70,8 +72,23 @@ async def main() -> None:
     url = endpoint()
     failures: list[str] = []
 
+    # Seed benchmarks (sample_size 0 + provenance) resolve by region.
+    data = structured(await call_tool(url, {"trade": "plumbing", "scope": "water heater replacement", "zip": "30301"}))
+    check("seed benchmark: atlanta water heater", data, True, failures)
+
+    data = structured(await call_tool(url, {"trade": "hvac", "scope": "full hvac system replacement", "zip": "80202"}))
+    check("seed benchmark: denver hvac", data, True, failures)
+
+    data = structured(await call_tool(url, {"trade": "roofing", "scope": "asphalt shingle 2000 sqft", "zip": "80202"}))
+    check("seed benchmark: denver roofing", data, True, failures)
+
+    # No per-square roofing benchmark exists for NYC: honest null, not a guess.
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "per square", "zip": "10001"}))
-    check("valid input", data, True, failures)
+    check("no per-square data for NYC", data, False, failures)
+
+    # Ambiguous scope: several flat roofing benchmarks near Chicago.
+    data = structured(await call_tool(url, {"trade": "roofing", "scope": "flat roof", "zip": "60601"}))
+    check("ambiguous scope lists options", data, False, failures)
 
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "per square", "zip": "99999"}))
     check("unknown zip", data, False, failures)

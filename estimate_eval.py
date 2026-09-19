@@ -444,7 +444,11 @@ def evaluate(
     # ---- benchmarks + per-line variance ----
     for line in lines:
         basis = basis_from_unit(line["unit"]) if trade_norm else None
-        row = seed_row(trade_norm, basis, zip_norm) if (trade_norm and basis) else None
+        row = (
+            seed_row(trade_norm, basis, zip_norm, hint=line["description"])
+            if (trade_norm and basis)
+            else None
+        )
         if row is None:
             line["benchmark"] = None
             line["variance"] = None
@@ -473,6 +477,17 @@ def evaluate(
 
     bench_lines = [line for line in lines if line["benchmark"] is not None]
 
+    # The overall range verdict needs real bounds. Seed rows may carry a
+    # median without low/high (the source published only an average); those
+    # lines still get a variance flag against the median, but they cannot
+    # support a below/within/above-range verdict and are excluded from it.
+    range_lines = [
+        line
+        for line in bench_lines
+        if line["benchmark"]["low"] is not None
+        and line["benchmark"]["high"] is not None
+    ]
+
     bench_subtotal = Decimal("0")
     for line in bench_lines:
         bench_subtotal = dec_add(bench_subtotal, line["computed_dec"])
@@ -482,23 +497,27 @@ def evaluate(
         str(bench_subtotal),
     )
 
+    range_subtotal = Decimal("0")
+    for line in range_lines:
+        range_subtotal = dec_add(range_subtotal, line["computed_dec"])
+
     range_low = Decimal("0")
     range_high = Decimal("0")
-    for line in bench_lines:
+    for line in range_lines:
         row = line["benchmark"]
         range_low = dec_add(range_low, dec_mul(row["low"], line["qty_dec"]))
         range_high = dec_add(range_high, dec_mul(row["high"], line["qty_dec"]))
     trail.add(
         "range_bounds",
         {
-            "lines": [line["n"] for line in bench_lines],
+            "lines": [line["n"] for line in range_lines],
             "low_bounds": [
                 str(dec_mul(line["benchmark"]["low"], line["qty_dec"]))
-                for line in bench_lines
+                for line in range_lines
             ],
             "high_bounds": [
                 str(dec_mul(line["benchmark"]["high"], line["qty_dec"]))
-                for line in bench_lines
+                for line in range_lines
             ],
         },
         json.dumps({"range_low": str(range_low), "range_high": str(range_high)}),
@@ -509,7 +528,7 @@ def evaluate(
         overall_flag = "insufficient_data"
         coverage_ratio = None
     else:
-        bench_dollars = bench_subtotal
+        bench_dollars = range_subtotal
         coverage_ratio = dec_div(bench_dollars, computed_total)
         trail.add(
             "coverage_ratio",
@@ -521,16 +540,16 @@ def evaluate(
         )
         if coverage_ratio < Decimal("0.5"):
             overall_flag = "insufficient_data"
-        elif bench_subtotal < range_low:
+        elif range_subtotal < range_low:
             overall_flag = "below_range"
-        elif bench_subtotal > range_high:
+        elif range_subtotal > range_high:
             overall_flag = "above_range"
         else:
             overall_flag = "within_range"
     trail.add(
         "overall_flag",
         {
-            "benchmarked_subtotal": str(bench_subtotal),
+            "benchmarked_subtotal": str(range_subtotal),
             "range_low": str(range_low),
             "range_high": str(range_high),
         },
@@ -646,6 +665,18 @@ def evaluate(
             f"line {line['n']} (\"{line['description']}\")" for line in no_data_lines
         )
         coverage_note += f" Lines without data were excluded from the overall rating: {missing}."
+    partial_lines = [
+        line for line in bench_lines
+        if line["n"] not in {r["n"] for r in range_lines}
+    ]
+    if partial_lines:
+        partial = ", ".join(
+            f"line {line['n']} (\"{line['description']}\")" for line in partial_lines
+        )
+        coverage_note += (
+            f" Lines with a published average but no low/high bounds were rated "
+            f"per-line only, not in the overall range verdict: {partial}."
+        )
     if omitted:
         coverage_note += (
             f" Showing the {MAX_VARIANCE_LINES} largest of "

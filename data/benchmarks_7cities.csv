@@ -1,0 +1,272 @@
+City,Trade,Service_Type,Low_Price,Avg_Price,High_Price,Labor_Rate_Low,Labor_Rate_High,Permit_Cost,Notes,Data_Source
+Los Angeles,HVAC,Diagnostic Service Call,75,125,200,N/A,N/A,N/A,Standard diagnostic fee,Angi/HomeAdvisor
+Los Angeles,HVAC,AC Unit Replacement (Central),5500,9500,13000,120,200,130-400,Existing ductwork assumed,HVAC Project Cost
+Los Angeles,HVAC,Full HVAC System Replacement,6800,11500,17000,120,200,130-400,Furnace + AC combined,Clear HVAC Costs
+Los Angeles,HVAC,Ductless Mini-Split Installation,3500,9750,16000,120,200,200-500,Common in multi-family,Angi
+Los Angeles,HVAC,Ductwork Replacement (Add-on),5000,7500,10000,120,200,150-300,Often needed with system replacement,HVAC Services Pro
+Chicago,HVAC,Diagnostic Service Call,50,75,150,N/A,N/A,N/A,Standard diagnostic fee,Four Seasons HVAC
+Chicago,HVAC,AC Unit Replacement (Central),4500,8750,12500,75,150,N/A,Standard mid-efficiency unit,Four Seasons HVAC
+Chicago,HVAC,Full HVAC System Replacement,5000,10500,14000,75,150,N/A,Furnace + AC combined,Angi
+Chicago,HVAC,Furnace Replacement,3000,5500,8000,75,150,N/A,Heating only system,4ABC
+Chicago,HVAC,New Ductwork (Add-on),2100,3500,4000,75,150,N/A,If existing ductwork unusable,Four Seasons HVAC
+Miami,HVAC,Diagnostic Service Call,75,140,200,N/A,N/A,N/A,Standard diagnostic fee,Angi/HomeAdvisor
+Miami,HVAC,AC Unit Replacement (Central),5200,10600,16000,100,200,200-500,Premium labor rates for humidity/environment,Angi/Homeyou
+Miami,HVAC,Full HVAC System Replacement,6000,11500,16500,100,200,200-500,Heat pump systems common in South Florida,HVAC Project Cost
+Miami,HVAC,Ductless Mini-Split Installation,4000,10000,15000,100,200,300-500,Prevalent in multi-family buildings,Angi
+Phoenix,HVAC,Diagnostic Service Call,85,130,175,N/A,N/A,N/A,Higher rates due to desert heat demand,Angi
+Phoenix,HVAC,AC Unit Replacement (Central),7000,10000,13000,85,175,150-350,Arizona-specific cooling focus,HVAC Project Cost
+Phoenix,HVAC,Full HVAC System Replacement,7500,11000,15000,85,175,150-350,Furnace + AC combined,Angi
+Phoenix,HVAC,Ductwork Add-on (with AC),5000,7500,10000,85,175,150-300,Concrete slab foundations increase difficulty,HVAC Services Pro
+Denver,HVAC,Diagnostic Service Call,70,100,160,N/A,N/A,N/A,Altitude-adjusted cooling loads,Four Seasons HVAC
+Denver,HVAC,AC Unit Replacement (Central),6000,9500,13000,85,160,100-200,High-altitude system sizing complex,Angi
+Denver,HVAC,Full HVAC System Replacement,6500,10500,14500,85,160,100-200,Furnace + AC; heating critical in winter,Colorado HVAC
+Denver,HVAC,New Ductwork Installation,2500,4000,5500,85,160,150-250,Growing metro = higher labor demand,Denver HVAC Pros
+Los Angeles,Plumbing,Service Call,112,375,814,40,80,70-170,Emergency calls cost 2-3x more,HiTech Plumbing
+Los Angeles,Plumbing,Pipe Repair (Minor),85,350,565,40,80,N/A,Drain line or refrigerant recharge,Angi
+Los Angeles,Plumbing,Full Pipe Replacement,517,2364,4244,40,80,200-400,Per-home cost varies by age,Plumb Quest
+Los Angeles,Plumbing,Whole-House Replumbing,8900,11200,15000,40,80,500-1000,37% above national average,RenovCost
+Los Angeles,Plumbing,Water Heater Replacement,1500,3200,5500,40,80,200-400,Tank type and size dependent,Angi
+Los Angeles,Plumbing,Bathroom Remodel (Rough-in),12390,15000,18000,40,80,500-1500,Labor + basic materials only,Angi
+Los Angeles,Plumbing,Full Bathroom Remodel,13185,20124,27072,40,80,1000-2000,Plumbing + fixtures + labor,Design Onn Point
+Chicago,Plumbing,Water Heater Replacement (Gas),1600,2220,5000,50,150,75,50-gallon standard tank,Suburban Plumbing Experts
+Chicago,Plumbing,Tankless Water Heater,3000,5750,8500,50,150,100-200,Whole-home system,Four Seasons HVAC
+Chicago,Plumbing,Service Call,N/A,250,400,50,150,50-100,Emergency rates higher,Angi
+Chicago,Plumbing,Pipe Repair,100,300,600,50,150,N/A,Minor drain/pressure issues,HomeYou
+Miami,Plumbing,Service Call,100,350,750,50,120,100-200,Humidity/saltwater corrosion factor,Angi
+Miami,Plumbing,Water Heater Replacement,1500,3500,5500,50,120,250-400,Tank corrosion accelerated in Miami,Plumbing Miami Pro
+Miami,Plumbing,Pipe Repair (Minor),150,400,800,50,120,150-300,Corrosion from salt air common,Miami Plumbing
+Miami,Plumbing,Whole-House Replumbing,9000,12000,16000,50,120,600-1200,High humidity + saltwater impact,RenovCost Miami
+Miami,Plumbing,Bathroom Remodel,15000,20000,28000,50,120,1000-2000,Hurricane code requirements add cost,Angi
+Phoenix,Plumbing,Service Call,85,200,500,40,80,N/A,Desert heat increases emergency calls,Angi
+Phoenix,Plumbing,Water Heater Replacement,1500,3500,5500,40,80,150-350,Solar water heaters popular in AZ,HVAC Project Cost
+Phoenix,Plumbing,Pipe Repair,100,350,600,40,80,N/A,Mineral deposits from hard water common,Phoenix Plumbing
+Phoenix,Plumbing,Full Pipe Replacement (Estimated),2000,3000,5000,40,80,250-400,Desert conditions require special materials,HomeAdvisor
+Denver,Plumbing,Service Call,80,180,400,50,160,N/A,Altitude affects pressure systems,Angi
+Denver,Plumbing,Water Heater Repair,150,400,950,50,160,50-100,Altitude affects gas heating efficiency,Denver Plumbing
+Denver,Plumbing,Water Heater Replacement,900,2000,4200,50,160,75-135,Permit required for all replacements,Denver Water Authority
+Denver,Plumbing,Pipe Repair,150,350,1000,50,160,N/A,Behind-wall leaks common in older homes,Denver Plumbing Pro
+Denver,Plumbing,Whole-House Replumbing (Estimated),3000,4500,6000,50,160,500-800,Growing metro = higher demand,Denver Plumbing
+Seattle,Plumbing,Service Call,120,250,450,80,225,N/A,Rain delays add overhead costs,Angi
+Seattle,Plumbing,Water Heater Repair,300,400,900,80,225,N/A,Expansion tanks required by code ($175-225 additional),Horizon Plumbing
+Seattle,Plumbing,Water Heater Replacement,1300,2500,7400,80,225,200-400,Code compliance = higher costs,Seattle Plumbing
+Seattle,Plumbing,Pipe Repair,150,300,450,80,225,N/A,Accessibility challenges increase labor,Horizon Plumbing
+Seattle,Plumbing,Pipe Replacement,676,2084,3507,80,225,300-500,Wide variation by home age/accessibility,Angi
+NYC,Plumbing,Service Call,150,350,500,150,250,100-200,NYC emergency surcharges high,NYC Plumbing
+NYC,Plumbing,Water Heater Repair,200,400,800,150,250,75,Building code compliance required,Angi
+NYC,Plumbing,Water Heater Replacement (Tank),1200,2400,3800,150,250,130,DOB flat fee + venting upgrades,NYC Plumbing
+NYC,Plumbing,Tankless Water Heater,3000,4500,6000,150,250,130-250,Gas line modifications common,NYC Plumbing Pro
+NYC,Plumbing,Pipe Repair,500,1100,1500,150,250,100-300,Older building infrastructure common,NYC Plumbing
+NYC,Plumbing,Pipe Replacement,365,1134,1922,150,250,200-400,Corroded pipes in pre-1950s buildings,Angi
+Los Angeles,Electrical,Service Call,N/A,300,500,50,150,100-200,Diagnostic inspection only,Karmic Electric
+Los Angeles,Electrical,Electrical Panel Upgrade (100-200 amp),1700,3975,11400,50,150,100-400,Upgrade from 100 to 200 amps,Angi
+Los Angeles,Electrical,Panel Upgrade (200 amp standard),4800,6150,7500,50,150,200-400,Standard 200-amp upgrade,ZeroFi
+Los Angeles,Electrical,Full House Rewiring,8000,11500,30000,50,150,500-1500,Varies by home age and size,Karmic Electric
+Los Angeles,Electrical,Outlet/Switch Installation,N/A,250,400,50,150,50-100,Per outlet or fixture,HomeAdvisor
+Chicago,Electrical,Electrical Panel Upgrade,600,1400,4000,40,250,50-300,Cost varies by amperage,Mr. Mighty Electric
+Chicago,Electrical,Whole House Rewiring,2500,3750,20000,40,250,100-500,Small to large homes,Icon Conduit Electric
+Chicago,Electrical,Service Call,N/A,200,350,40,250,50-150,Troubleshooting and diagnosis,HomeYou
+Miami,Electrical,Service Call,150,300,600,60,150,150-250,AC demand-driven emergency calls,Angi
+Miami,Electrical,Panel Upgrade (100-200 amp),1200,2500,3500,60,150,200-400,Standard upgrade work,Miami Electric Pro
+Miami,Electrical,Panel Upgrade (200-400 amp),4000,5500,7000,60,150,300-500,Larger homes + FPL coordination,WireMasters Electric
+Miami,Electrical,Full House Rewiring (Partial),3000,7000,15000,60,150,500-1500,Saltwater corrosion of old wiring,Miami Electric
+Phoenix,Electrical,Service Call,100,250,450,50,100,N/A,Desert heat diagnostic calls,Angi
+Phoenix,Electrical,Electrical Panel Upgrade,1240,1650,2066,50,100,150-300,Heated market = competitive pricing,Phoenix Electric
+Phoenix,Electrical,200 Amp Panel (Like-for-like),5200,5850,6500,50,100,200-400,Standard swap or full upgrade,AZ DC Electric
+Phoenix,Electrical,Full House Rewiring,3000,7500,10000,50,100,500-1000,Varies by age and size,Phoenix Electric Pro
+Denver,Electrical,Service Call,100,200,350,60,150,N/A,Altitude-adjusted systems,Angi
+Denver,Electrical,Electrical Panel Upgrade,1200,2000,3500,60,150,150-350,Altitude demands careful sizing,Denver Electric
+Denver,Electrical,200 Amp Panel Upgrade,2000,3000,4500,60,150,200-400,Full system replacement,Icon Electric Denver
+Denver,Electrical,Full House Rewiring,2500,5000,12000,60,150,400-800,Large variation by home size,Denver Electric Pro
+Seattle,Electrical,Service Call,120,250,400,80,150,N/A,Wet climate = moisture issues,Angi
+Seattle,Electrical,Electrical Panel Upgrade,1500,2500,3800,80,150,200-400,Code compliance overhead,Seattle Electric
+Seattle,Electrical,200 Amp Panel,3000,4000,5500,80,150,300-500,Full upgrade standard,Emerald City Electric
+Seattle,Electrical,Whole House Rewiring,4000,8000,15000,80,150,500-1200,Older homes prevalent,Seattle Electric Pro
+NYC,Electrical,Service Call,150,300,500,100,200,150-250,NYC emergency premium,Angi
+NYC,Electrical,Panel Upgrade (100-200 amp),1800,2650,3500,100,200,250-400,DOB permit required,NYC Electric
+NYC,Electrical,Panel Upgrade (200+ amp),2000,3500,5000,100,200,300-500,Full service entrance work,NYC Electric Pro
+NYC,Electrical,House Rewiring (Partial),1500,2000,5000,100,200,400-800,Knob-and-tube replacement common,Angi
+NYC,Electrical,House Rewiring (Full),2500,4500,12000,100,200,600-1200,Pre-1950s buildings = extensive work,NYC Electric
+Los Angeles,Roofing,Asphalt Shingle Replacement (2000 sqft),15206,16292,22810,N/A,N/A,500-2000,Per sqft: $7-$11,Instant Roofer
+Los Angeles,Roofing,Cost per Sq Ft (Asphalt),N/A,8.50,12,N/A,N/A,500-2000,Higher than state average due to labor,Royal Roofing
+Los Angeles,Roofing,Premium/Architectural Shingles,N/A,18000,28000,N/A,N/A,500-2000,Mid-premium option,InstantRoofer
+Los Angeles,Roofing,Metal Roofing,N/A,22000,35000,N/A,N/A,500-2000,Long-lasting premium option,Build Folio
+Chicago,Roofing,Asphalt Shingle Replacement (2000 sqft),14000,18000,26000,N/A,N/A,475,Most common choice,Midtown Roofing
+Chicago,Roofing,Architectural Shingles (2000 sqft),19000,22500,26000,N/A,N/A,475,Upgraded quality shingles,Chicago Roof & Repair
+Chicago,Roofing,Metal Roofing,24000,35500,47000,N/A,N/A,475,Premium long-term option,Home Hero Roofing
+Chicago,Roofing,Cost per Square (Asphalt),N/A,647,N/A,N/A,N/A,475,Per 100 sq ft unit,Chicago Roof & Repair
+Miami,Roofing,Asphalt Shingle (1000 sqft),4200,5300,6500,N/A,N/A,500-1500,Below 2000sf jobs,HomeBlue
+Miami,Roofing,Asphalt Shingle (1500 sqft),6200,7900,9800,N/A,N/A,500-1500,Standard small-medium,HomeBlue
+Miami,Roofing,Asphalt Shingle (2000 sqft),8300,10900,13000,N/A,N/A,500-1500,Most common size,Homeyou
+Miami,Roofing,Asphalt Shingle (3000 sqft),12400,15900,19600,N/A,N/A,500-2000,Large homes,HomeBlue
+Miami,Roofing,Cost per Sq Ft (Asphalt),N/A,5.00,7,N/A,N/A,500-1500,Miami averages $4-7 installed,FoxHaven Roofing
+Miami,Roofing,Metal Roofing,N/A,20000,30000,N/A,N/A,1000-2000,Hurricane-rated premium,Miami Roofing
+Phoenix,Roofing,Asphalt Shingle (1500 sqft),6750,8250,9750,N/A,N/A,N/A,Labor 50-60% of cost,Simply Roofing
+Phoenix,Roofing,Asphalt Shingle (2000 sqft),9000,11000,13000,N/A,N/A,N/A,Most common size in Phoenix,Phoenix Roofing
+Phoenix,Roofing,Architectural Shingles,N/A,12000,16000,N/A,N/A,200-400,Premium upgrade,Phoenix Roofing Pro
+Phoenix,Roofing,Cost per Sq Ft (Asphalt),N/A,5.50,7,N/A,N/A,200-400,Desert heat = higher durability needs,Royal Roofing
+Denver,Roofing,Asphalt Shingle (1000 sqft),4300,5500,6800,N/A,N/A,200-400,Hail-prone region,Core Roofing
+Denver,Roofing,Asphalt Shingle (1500 sqft),6500,8350,10200,N/A,N/A,200-400,Standard mid-size,Denver Roofing
+Denver,Roofing,Asphalt Shingle (2000 sqft),8600,11000,13600,N/A,N/A,200-400,Most common,Core Roofing
+Denver,Roofing,Asphalt Shingle (2500 sqft),10800,14000,17000,N/A,N/A,300-500,Large homes,Denver Roofing Pro
+Denver,Roofing,Impact-Resistant Shingles,N/A,12500,17000,N/A,N/A,300-500,Hail protection premium (+$1-1.5/sqft),Core Roofing
+Denver,Roofing,Cost per Sq Ft (Asphalt),N/A,5.50,7,N/A,N/A,300-500,Standard to premium,Denver Roofing
+Seattle,Roofing,Asphalt Shingle (1500 sqft),6750,9750,13500,N/A,N/A,300-500,Rain protection critical,RoofSmart
+Seattle,Roofing,Asphalt Shingle (2000 sqft),9000,13000,16000,N/A,N/A,400-600,Most common size,Roofing Titan
+Seattle,Roofing,Asphalt Shingle (2500 sqft),11250,16250,20000,N/A,N/A,500-800,Larger homes,Seattle Roofing
+Seattle,Roofing,Architectural Shingles,N/A,15000,21000,N/A,N/A,500-1000,Premium option,Roofing Titan
+Seattle,Roofing,Cost per Sq Ft (Asphalt),N/A,6.00,8,N/A,N/A,400-600,15-25% above national average,Seattle Roofing Co
+NYC,Roofing,Asphalt Shingle (1500 sqft),6750,9500,11500,N/A,N/A,249,Standard smaller homes,Instant Roofer
+NYC,Roofing,Asphalt Shingle (2000 sqft),9000,12164,15000,N/A,N/A,249,Mid-range standard,NYC Roofing
+NYC,Roofing,Asphalt Shingle (2500 sqft),11250,15205,18750,N/A,N/A,249-500,Larger homes,Roof Cost Data
+NYC,Roofing,Architectural Shingles,N/A,16000,24000,N/A,N/A,250-500,Premium option,NYC Roofing Pro
+NYC,Roofing,Cost per Sq Ft (Asphalt),N/A,6.50,7.5,N/A,N/A,249,NYC average $6.65/sqft,Instant Roofer
+NYC,Roofing,Manhattan Premium (Add),N/A,5000,12000,N/A,N/A,250-500,Access difficulty + labor premium,NYC Roofing
+Los Angeles,Kitchen Remodel,Minor Refresh (cabinets/counters),25000,32500,40000,N/A,N/A,500-1500,Paint + fixtures + counters only,GreatBuildz
+Los Angeles,Kitchen Remodel,Mid-Range Full Remodel,60000,75000,100000,N/A,N/A,1000-3000,Cabinets + counters + appliances + labor,NP Line Design
+Los Angeles,Kitchen Remodel,High-End Full Gut Renovation,60000,90000,120000,N/A,N/A,2000-4500,Custom cabinets + structural work,Golden Line Construction
+Los Angeles,Kitchen Remodel,Per Sq Ft Estimate,N/A,225,350,N/A,N/A,500-4500,Varies by scope of work,Design Onn Point
+Chicago,Kitchen Remodel,Budget Refresh,25000,32500,40000,N/A,N/A,1000-1800,Minor updates only,Are There Renovators
+Chicago,Kitchen Remodel,Mid-Range Remodel,45000,65000,85000,N/A,N/A,1800-3000,Standard full remodel,Wood Contracting Chicago
+Chicago,Kitchen Remodel,High-End Remodel,90000,120000,150000,N/A,N/A,3000-4200,Premium materials + custom work,Moller Group
+Chicago,Kitchen Remodel,Per Sq Ft Estimate,175,300,450,N/A,N/A,1000-4200,Per sq ft of kitchen space,LuxeLine Remodeling
+Miami,Kitchen Remodel,Small Refresh,10000,12500,15000,N/A,N/A,500-1500,Cosmetic updates only,Angi
+Miami,Kitchen Remodel,Mid-Range Remodel,20000,26500,39398,N/A,N/A,1000-2500,Standard full kitchen,Fab's Remodeling
+Miami,Kitchen Remodel,High-End Remodel,40000,60000,80000,N/A,N/A,2000-3500,Custom finishes + premium appliances,Miami Remodeling
+Miami,Kitchen Remodel,Luxury Remodel,80000,110000,150000,N/A,N/A,3000-4500,High-end materials + custom work,Miami Luxury Renovations
+Phoenix,Kitchen Remodel,Budget Refresh,15000,22000,28000,N/A,N/A,400-1000,Cosmetic updates,Phoenix Remodeling
+Phoenix,Kitchen Remodel,Mid-Range Remodel,30000,45000,60000,N/A,N/A,1000-2000,Standard full remodel,Hochuli Design
+Phoenix,Kitchen Remodel,High-End Remodel,70000,90000,120000,N/A,N/A,2000-3500,Premium materials,Fenn Rogers
+Phoenix,Kitchen Remodel,Per Sq Ft,N/A,150,300,N/A,N/A,400-1500,Phoenix slightly below national,RenovCost
+Denver,Kitchen Remodel,Cosmetic Refresh,7000,10000,12000,N/A,N/A,400-800,Paint + hardware + lighting,Denver Remodeling
+Denver,Kitchen Remodel,Mid-Range Remodel,45000,65000,85000,N/A,N/A,1000-2000,Standard full remodel,Caruso Kitchens
+Denver,Kitchen Remodel,High-End Remodel,100000,130000,180000,N/A,N/A,2000-3500,Premium materials + custom work,Denver Luxury Remodeling
+Denver,Kitchen Remodel,Per Sq Ft (Premium),N/A,450,650,N/A,N/A,1000-3500,Denver labor premium 15-25% higher,Western Sky Designs
+Seattle,Kitchen Remodel,Cosmetic Refresh,12000,18000,25000,N/A,N/A,500-1200,Paint + fixtures + basic upgrades,Horizon Construction
+Seattle,Kitchen Remodel,Mid-Range Remodel,35000,50000,65000,N/A,N/A,1200-2500,Semi-custom cabinets + new appliances,Unique Home Co
+Seattle,Kitchen Remodel,Layout Change Remodel,65000,80000,95000,N/A,N/A,1500-3000,Plumbing/electrical moves + new layout,Emerald City Construction
+Seattle,Kitchen Remodel,High-End Remodel,95000,120000,150000,N/A,N/A,2500-4500,Custom everything + premium finishes,360 House Remodeling
+NYC,Kitchen Remodel,Minor Refresh,15000,22500,32000,N/A,N/A,800-1500,Paint + fixtures + counters,Sweeten
+NYC,Kitchen Remodel,Mid-Range Remodel,35000,65000,107000,N/A,N/A,1500-3000,Standard full kitchen DOB permits,Gallery KB NY
+NYC,Kitchen Remodel,High-End Remodel,120000,160000,200000,N/A,N/A,3000-5000,Custom cabinetry + premium finishes,Essential NY
+NYC,Kitchen Remodel,Luxury Gut Renovation,200000,250000,350000,N/A,N/A,5000-8000,Full layout change + structural work,Corniel Construction
+NYC,Kitchen Remodel,Per Sq Ft,300,500,800,N/A,N/A,2000-8000,NYC premium due to DOB + tight spaces,Monarch Contracting
+Boston,HVAC,Diagnostic Service Call,90,150,220,N/A,N/A,N/A,Standard diagnostic fee,Angi/HomeAdvisor
+Boston,HVAC,AC Unit Replacement (Central),5018,8149,11404,100,175,150-400,Pre-1980 homes often add $1500-$5000 for duct work,Angi/HVACProjectCost
+Boston,HVAC,Full HVAC System Replacement,6100,9800,15500,100,175,150-400,Furnace + AC combined; MassSave rebates up to $10000 available,MassHVAC/HVACProjectCost
+Boston,HVAC,Ductless Mini-Split Installation,4000,7500,12000,100,175,200-500,Popular in older homes without ductwork; per-zone pricing,MassHVAC
+Boston,HVAC,Ductwork Replacement (Add-on),1500,3500,5000,100,175,150-300,Pre-1980 Boston homes often need duct upgrades,MassHVAC
+Boston,Plumbing,Service Call,120,300,500,90,175,100-200,Emergency/weekend rates run higher,Angi
+Boston,Plumbing,Water Heater Replacement,2400,3800,6000,90,175,100-250,50-gallon tank; code compliance required,BostonTankSwap
+Boston,Plumbing,Tankless Water Heater,3200,4800,7000,90,175,150-300,Gas line modifications common in older homes,Angi
+Boston,Plumbing,Pipe Repair,300,700,1200,90,175,N/A,Older triple-decker infrastructure common,Angi
+Boston,Plumbing,Whole-House Replumbing,8000,11500,16000,90,175,500-1000,Older homes drive higher labor,RenovCost
+Boston,Plumbing,Bathroom Remodel,14000,19000,26000,90,175,800-1500,Plumbing + fixtures,Angi
+Boston,Electrical,Service Call,150,300,500,90,175,100-200,Northeast labor premium,Angi
+Boston,Electrical,Electrical Panel Upgrade (100-200 amp),2000,3200,4800,90,175,150-350,Unionized labor + code requirements raise cost,Networx/VonsElectric
+Boston,Electrical,Panel Upgrade (200 amp standard),4500,6000,8000,90,175,200-400,Standard 200-amp swap,ThisOldHouse
+Boston,Electrical,Full House Rewiring,9000,13000,25000,90,175,500-1500,Pre-1950s triple-deckers common; knob-and-tube removal,Angi
+Boston,Roofing,Asphalt Shingle Replacement (1500 sqft),10000,13000,16000,N/A,N/A,200-500,Northeast weather-resistant materials required,RoofingCalc
+Boston,Roofing,Asphalt Shingle Replacement (2000 sqft),13000,17500,21000,N/A,N/A,200-500,Most common size,RoofReport
+Boston,Roofing,Cost per Sq Ft (Asphalt),N/A,8.50,10.50,N/A,N/A,200-500,Coastal Northeast premium,RoofReplacementCost.ai
+Boston,Roofing,Architectural Shingles,N/A,20000,28000,N/A,N/A,300-600,Premium upgrade,Modernize
+Boston,Roofing,Metal Roofing,N/A,25000,38000,N/A,N/A,400-800,Snow load durability,SubcontractorHub
+Boston,Kitchen Remodel,Minor Refresh (cabinets/counters),28000,35000,45000,N/A,N/A,500-1500,Paint + fixtures + counters,RemodelRange
+Boston,Kitchen Remodel,Mid-Range Full Remodel,55000,85000,120000,N/A,N/A,1000-3000,Cabinets + counters + appliances + labor; historic-district review may add cost,RemodelRange
+Boston,Kitchen Remodel,High-End Full Gut Renovation,120000,175000,230000,N/A,N/A,2000-4500,Custom work; older homes often need structural updates,RemodelRange
+Boston,Kitchen Remodel,Per Sq Ft Estimate,N/A,275,400,N/A,N/A,500-4500,Boston premium vs national average,BlockRenovation
+San Francisco,HVAC,Diagnostic Service Call,100,150,250,N/A,N/A,N/A,Standard diagnostic fee,Angi
+San Francisco,HVAC,AC Unit Replacement (Central),5283,8328,11676,100,175,400-1000,Permit runs ~6-9% of project cost,Angi/LookupCost
+San Francisco,HVAC,Full HVAC System Replacement,18500,22250,26000,100,175,500-1200,Victorian/Edwardian homes increase complexity,LookupCost
+San Francisco,HVAC,Ductless Mini-Split Installation,5000,11000,18000,100,175,400-900,Popular for homes without ductwork,Galaxy Services
+San Francisco,HVAC,Ductwork Replacement (Add-on),5500,8500,12000,100,175,300-700,Older SF homes often lack proper ductwork,InverterCool
+San Francisco,Plumbing,Service Call,150,375,700,100,200,100-250,High cost-of-living market,Angi
+San Francisco,Plumbing,Water Heater Replacement,2000,4200,7000,100,200,300-600,CA seismic strapping code adds cost,HomeGuide
+San Francisco,Plumbing,Tankless Water Heater,3500,6000,9000,100,200,350-700,Growing in popularity for space savings,Ecostify
+San Francisco,Plumbing,Pipe Repair,300,750,1400,100,200,N/A,Older Victorian plumbing common,Angi
+San Francisco,Plumbing,Whole-House Replumbing,10000,14000,19000,100,200,700-1300,Older housing stock drives extensive work,RenovCost
+San Francisco,Plumbing,Bathroom Remodel,16000,22000,30000,100,200,1000-2000,High material + labor costs,Angi
+San Francisco,Electrical,Service Call,150,325,550,100,200,150-300,High-demand market,Angi
+San Francisco,Electrical,Electrical Panel Upgrade (100-200 amp),2500,4000,5500,100,200,300-600,Standard overhead upgrade,AlphaOmegaElectric
+San Francisco,Electrical,Panel Upgrade (200 amp, underground service),5500,12000,18500,100,200,500-1200,Underground service requires trenching/sidewalk work,AlphaOmegaElectric
+San Francisco,Electrical,Full House Rewiring,10000,16000,32000,100,200,600-1800,Older Victorian/Edwardian wiring common,Angi
+San Francisco,Roofing,Asphalt Shingle Replacement (1500 sqft),11000,14500,18000,N/A,N/A,300-700,Seismic + fire-code requirements,RoofingCalc
+San Francisco,Roofing,Asphalt Shingle Replacement (2000 sqft),14500,19000,24000,N/A,N/A,300-700,Most common size,RoofReport
+San Francisco,Roofing,Cost per Sq Ft (Asphalt),N/A,9.50,12.00,N/A,N/A,300-700,Class A fire-rated materials required (+20-40%),BestRoofingEstimates
+San Francisco,Roofing,Architectural/Class A Shingles,N/A,23000,32000,N/A,N/A,400-900,Fire-resistant premium,Modernize
+San Francisco,Roofing,Metal Roofing,N/A,28000,42000,N/A,N/A,500-1000,Premium long-term + fire resistance,SubcontractorHub
+San Francisco,Kitchen Remodel,Minor Refresh (cabinets/counters),30000,40000,52000,N/A,N/A,800-2000,Cosmetic updates,BlockRenovation
+San Francisco,Kitchen Remodel,Mid-Range Full Remodel,52000,82000,110000,N/A,N/A,1500-3500,150 sq ft kitchen; California Title 24 compliance,KitchenBudgetPlanner
+San Francisco,Kitchen Remodel,High-End Full Gut Renovation,130000,180000,250000,N/A,N/A,2500-5000,Custom work + structural updates in older homes,KitchenBudgetPlanner
+San Francisco,Kitchen Remodel,Per Sq Ft Estimate,N/A,400,550,N/A,N/A,800-5000,Highest-cost market in dataset,KitchenBudgetPlanner
+Dallas-Fort Worth,HVAC,Diagnostic Service Call,69,99,150,N/A,N/A,N/A,Standard diagnostic fee,Angi
+Dallas-Fort Worth,HVAC,AC Unit Replacement (Central),5200,9000,13000,75,150,N/A,Matched system (condenser+coil); R-454B refrigerant transition added $500-$1000 in 2026,ACDirect/ColdFactor
+Dallas-Fort Worth,HVAC,Full HVAC System Replacement,8000,13000,18000,75,150,N/A,Furnace + AC combined,HVACProjectCost
+Dallas-Fort Worth,HVAC,Ductless Mini-Split Installation,3500,8500,14000,75,150,150-350,Growing option for additions/garage conversions,HVACServicesPro
+Dallas-Fort Worth,HVAC,Ductwork Add-on,1500,5500,8500,75,150,N/A,Add $1500-$5500 if ducts need repair,DFWAirCost
+Dallas-Fort Worth,Plumbing,Service Call,89,175,350,65,140,N/A,Standard trip + diagnostic,Angi
+Dallas-Fort Worth,Plumbing,Water Heater Replacement,1200,2400,4000,65,140,75-150,50-gallon gas standard,HomeGuide
+Dallas-Fort Worth,Plumbing,Tankless Water Heater,2800,4800,7000,65,140,100-250,Growing in popularity,PlumbingSniper
+Dallas-Fort Worth,Plumbing,Pipe Repair,100,350,650,65,140,N/A,Foundation shift from Texas clay soil common,Angi
+Dallas-Fort Worth,Plumbing,Whole-House Replumbing,4500,7500,11000,65,140,300-600,PEX common for cost savings,RenovCost
+Dallas-Fort Worth,Plumbing,Bathroom Remodel,12000,17000,24000,65,140,600-1200,Standard full bathroom,Angi
+Dallas-Fort Worth,Electrical,Service Call,89,225,400,65,140,N/A,Standard diagnostic,Angi
+Dallas-Fort Worth,Electrical,Electrical Panel Upgrade (100-200 amp),1300,2200,3200,65,140,100-250,Near national-average pricing tier,Networx
+Dallas-Fort Worth,Electrical,Panel Upgrade (200 amp standard),2200,3200,4500,65,140,150-300,Standard swap,VonsElectric
+Dallas-Fort Worth,Electrical,Full House Rewiring,4500,8000,16000,65,140,300-800,Varies by home age and size,Angi
+Dallas-Fort Worth,Roofing,Asphalt Shingle Replacement (1500 sqft),6000,7800,9500,N/A,N/A,150-350,Hail-prone region drives insurance-related demand,RoofingCalc
+Dallas-Fort Worth,Roofing,Asphalt Shingle Replacement (2000 sqft),8000,10200,12500,N/A,N/A,150-350,Most common size,RoofReport
+Dallas-Fort Worth,Roofing,Cost per Sq Ft (Asphalt),N/A,5.00,6.50,N/A,N/A,150-350,Below coastal-market average,RoofReplacementCost.ai
+Dallas-Fort Worth,Roofing,Architectural Shingles,N/A,13000,17000,N/A,N/A,200-450,Wind/hail-resistant upgrade popular,Modernize
+Dallas-Fort Worth,Roofing,Impact-Resistant Shingles,N/A,14500,19000,N/A,N/A,200-450,Hail protection premium; some insurers offer discounts,BestRoofingEstimates
+Dallas-Fort Worth,Kitchen Remodel,Budget Refresh,15000,20000,26000,N/A,N/A,500-1200,Cosmetic updates,BlockRenovation
+Dallas-Fort Worth,Kitchen Remodel,Mid-Range Remodel,32000,40000,48000,N/A,N/A,1000-2000,Standard full remodel,KitchenBudgetPlanner
+Dallas-Fort Worth,Kitchen Remodel,High-End Remodel,65000,85000,115000,N/A,N/A,1800-3200,Premium materials + custom work,KitchenBudgetPlanner
+Dallas-Fort Worth,Kitchen Remodel,Per Sq Ft,N/A,175,275,N/A,N/A,500-3200,Near national average,Build-Folio
+Atlanta,HVAC,Diagnostic Service Call,79,125,180,N/A,N/A,N/A,Standard diagnostic fee,Angi
+Atlanta,HVAC,AC Unit Replacement (Central),6999,9550,19000,58,95,150-400,Labor costs run ~9% below national average,ReliableAir/Angi
+Atlanta,HVAC,Full HVAC System Replacement,8500,13500,19500,58,95,150-400,Furnace + AC combined,HVACProjectCost
+Atlanta,HVAC,Ductless Mini-Split Installation,3500,8000,13500,58,95,200-450,Popular for additions/sunrooms,PVHVAC
+Atlanta,HVAC,Ductwork Add-on,1200,4500,7500,58,95,N/A,Ductwork repairs/upgrades add $1200-$4500,HVACProjectCost
+Atlanta,Plumbing,Service Call,75,175,325,55,120,N/A,Standard trip + diagnostic,Angi
+Atlanta,Plumbing,Water Heater Replacement,1100,2200,3800,55,120,75-150,50-gallon gas standard,HomeGuide
+Atlanta,Plumbing,Tankless Water Heater,2600,4400,6500,55,120,100-200,Growing option in newer construction,PlumbingSniper
+Atlanta,Plumbing,Pipe Repair,100,325,600,55,120,N/A,Red clay soil shifting common,Angi
+Atlanta,Plumbing,Whole-House Replumbing,4200,7000,10500,55,120,300-600,PEX common for cost savings,RenovCost
+Atlanta,Plumbing,Bathroom Remodel,11000,16000,22500,55,120,600-1200,Standard full bathroom,Angi
+Atlanta,Electrical,Service Call,79,200,375,55,120,N/A,Standard diagnostic,Angi
+Atlanta,Electrical,Electrical Panel Upgrade (100-200 amp),1200,2000,3000,55,120,100-250,Near national-average pricing,Networx
+Atlanta,Electrical,Panel Upgrade (200 amp standard),2000,3000,4200,55,120,150-300,Standard swap,VonsElectric
+Atlanta,Electrical,Full House Rewiring,4000,7500,15000,55,120,300-800,Varies by home age and size,Angi
+Atlanta,Roofing,Asphalt Shingle Replacement (1500 sqft),5800,7500,9200,N/A,N/A,150-350,Below coastal-market average,RoofingCalc
+Atlanta,Roofing,Asphalt Shingle Replacement (2000 sqft),7700,10000,12200,N/A,N/A,150-350,Most common size,RoofReport
+Atlanta,Roofing,Cost per Sq Ft (Asphalt),N/A,4.85,6.25,N/A,N/A,150-350,Southeast regional average,RoofReplacementCost.ai
+Atlanta,Roofing,Architectural Shingles,N/A,12500,16500,N/A,N/A,200-450,Popular upgrade in Southeast,Modernize
+Atlanta,Roofing,Metal Roofing,N/A,19000,28000,N/A,N/A,300-600,Growing in popularity for storm resistance,SubcontractorHub
+Atlanta,Kitchen Remodel,Budget Refresh,14000,19000,25000,N/A,N/A,500-1200,Cosmetic updates,BlockRenovation
+Atlanta,Kitchen Remodel,Mid-Range Remodel,30000,42000,55000,N/A,N/A,1000-2000,Standard full remodel,KitchenBudgetPlanner
+Atlanta,Kitchen Remodel,High-End Remodel,65000,85000,115000,N/A,N/A,1800-3200,Premium materials + custom work,KitchenBudgetPlanner
+Atlanta,Kitchen Remodel,Per Sq Ft,N/A,165,260,N/A,N/A,500-3200,Near national average,Build-Folio
+Washington DC,HVAC,Diagnostic Service Call,89,140,200,N/A,N/A,N/A,Standard diagnostic fee,Angi
+Washington DC,HVAC,AC Unit Replacement (Central),6000,10000,14000,90,175,150-400,DC permit + inspection required,NeighborPrices/Angi
+Washington DC,HVAC,Full HVAC System Replacement,10375,11250,14750,90,175,200-500,Furnace + AC combined; median from verified homeowner reports,NeighborPrices
+Washington DC,HVAC,Ductless Mini-Split Installation,4500,9500,15000,90,175,250-500,Common in rowhomes without ductwork,ContractorPlus
+Washington DC,HVAC,Ductwork Add-on,2000,5500,8500,90,175,200-400,Common need in pre-war rowhomes,Angi
+Washington DC,Plumbing,Service Call,130,320,550,90,175,100-200,High cost-of-living market,Angi
+Washington DC,Plumbing,Water Heater Replacement,1800,3400,5500,90,175,150-300,Rowhome venting adds complexity,HomeGuide
+Washington DC,Plumbing,Tankless Water Heater,3000,5200,7500,90,175,150-300,Space-saving option popular in rowhomes,PlumbingSniper
+Washington DC,Plumbing,Pipe Repair,250,650,1200,90,175,N/A,Older rowhome infrastructure common,Angi
+Washington DC,Plumbing,Whole-House Replumbing,7500,10500,15000,90,175,500-900,Pre-war construction drives extensive work,RenovCost
+Washington DC,Plumbing,Bathroom Remodel,14000,19500,27000,90,175,800-1500,DC permitting adds time/cost,Angi
+Washington DC,Electrical,Service Call,130,285,475,90,175,150-300,High-demand market,Angi
+Washington DC,Electrical,Electrical Panel Upgrade (100-200 amp),1400,2175,3200,90,175,200-400,DC permit + inspection required,Angi
+Washington DC,Electrical,Panel Upgrade (200 amp standard),2500,3500,5000,90,175,250-450,Standard swap,ThisOldHouse
+Washington DC,Electrical,Full House Rewiring,8000,12000,24000,90,175,500-1400,Pre-war rowhomes drive extensive work,Angi
+Washington DC,Roofing,Asphalt Shingle Replacement (1500 sqft),9750,12750,15750,N/A,N/A,200-450,Rowhome flat/low-slope sections common,RoofingCalc
+Washington DC,Roofing,Asphalt Shingle Replacement (2000 sqft),13000,17000,21000,N/A,N/A,200-450,Most common size,RoofReport
+Washington DC,Roofing,Cost per Sq Ft (Asphalt),N/A,8.00,10.50,N/A,N/A,200-450,Coastal/major-metro premium,RoofReplacementCost.ai
+Washington DC,Roofing,Architectural Shingles,N/A,19000,26000,N/A,N/A,300-600,Premium upgrade,Modernize
+Washington DC,Roofing,Metal Roofing,N/A,24000,35000,N/A,N/A,400-800,Long-lasting premium option,SubcontractorHub
+Washington DC,Kitchen Remodel,Minor Refresh (cabinets/counters),26000,34000,44000,N/A,N/A,700-1800,Paint + fixtures + counters,BlockRenovation
+Washington DC,Kitchen Remodel,Mid-Range Full Remodel,55000,78000,105000,N/A,N/A,1300-3000,Rowhome layouts often require creative solutions,KitchenBudgetPlanner
+Washington DC,Kitchen Remodel,High-End Full Gut Renovation,110000,155000,210000,N/A,N/A,2200-4500,Custom work + historic-district considerations,KitchenBudgetPlanner
+Washington DC,Kitchen Remodel,Per Sq Ft Estimate,N/A,260,380,N/A,N/A,700-4500,Above national average,Build-Folio
