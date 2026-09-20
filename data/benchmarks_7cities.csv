@@ -321,3 +321,19 @@ Austin,Kitchen Remodel,Cosmetic Refresh,12300,13650,15000,N/A,N/A,200-600,"Refac
 Austin,Kitchen Remodel,Mid-Range Remodel,31900,38400,46500,N/A,N/A,200-600,"Semi-custom cabinets, quartz counters; ~9% above national average",RenovCost,2026-06-01
 Austin,Kitchen Remodel,High-End Remodel,70600,80450,90300,N/A,N/A,200-600,"Custom cabinetry, natural stone, pro-grade appliances","RenovCost (typical = midpoint of published range $70,600-$90,300)",2026-06-01
 Austin,Kitchen Remodel,Per Sq Ft (Mid-Range),120,212.50,305,N/A,N/A,200-600,Mid-range tier rate,RenovCost (typical = midpoint of published range $120-$305),2026-06-01
+NYC,Interior Painting,Cost per Sq Ft (Interior),3.75,5.625,7.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $3.75-$7.50),2026-01-01
+San Francisco,Interior Painting,Cost per Sq Ft (Interior),3.50,5.375,7.25,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $3.50-$7.25),2026-01-01
+Boston,Interior Painting,Cost per Sq Ft (Interior),3.25,5.00,6.75,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $3.25-$6.75),2026-01-01
+Los Angeles,Interior Painting,Cost per Sq Ft (Interior),3,4.75,6.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $3-$6.50),2026-01-01
+Seattle,Interior Painting,Cost per Sq Ft (Interior),3,4.5,6,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $3-$6),2026-01-01
+Austin,Interior Painting,Cost per Sq Ft (Interior),2.75,4.125,5.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.75-$5.50),2026-01-01
+Denver,Interior Painting,Cost per Sq Ft (Interior),2.75,4.125,5.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.75-$5.50),2026-01-01
+Chicago,Interior Painting,Cost per Sq Ft (Interior),2.75,4.125,5.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.75-$5.50),2026-01-01
+Miami,Interior Painting,Cost per Sq Ft (Interior),2.75,4.00,5.25,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.75-$5.25),2026-01-01
+Dallas-Fort Worth,Interior Painting,Cost per Sq Ft (Interior),2.25,3.50,4.75,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.25-$4.75),2026-01-01
+Atlanta,Interior Painting,Cost per Sq Ft (Interior),2.25,3.50,4.75,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2.25-$4.75),2026-01-01
+Phoenix,Interior Painting,Cost per Sq Ft (Interior),2,3.25,4.50,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $2-$4.50),2026-01-01
+Houston,Interior Painting,Cost per Sq Ft (Interior),1.75,3.00,4.25,N/A,N/A,N/A,"Walls, trim and ceilings; prep work included",BrushQuote (typical = midpoint of published range $1.75-$4.25),2026-01-01
+Washington DC,Interior Painting,Cost per Sq Ft (Interior),2,4.70,6,N/A,N/A,N/A,Typical figure covers walls and ceilings; walls alone run $1.50-$3.50,Angi,2026-08-04
+Washington DC,Interior Painting,Whole-Home Interior Repaint,1045,2120,3196,N/A,N/A,N/A,Labor is 75% to 95% of the total,Angi,2026-08-04
+Washington DC,Interior Painting,Single Room Repaint,436,1198,1742,50,82,N/A,"A 10x10 room runs $200-$600; a 16x16 room $515-$1,540",Angi,2026-07-08

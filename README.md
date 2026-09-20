@@ -3,7 +3,7 @@
 Minimal remote MCP server exposing two tools over streamable HTTP.
 
 Cost figures come from a Postgres seed-benchmark table (`benchmark_ranges`,
-322 city-level rows across 14 metros and 5 trades, imported from the legacy
+338 city-level rows across 14 metros and 6 trades, imported from the legacy
 estimate-reviewer's published-guide research). Every seed row carries
 `sample_size=0` and a `provenance` string: seed benchmarks are published
 guide data, never observed EstimateGuard jobs, and the table is never
@@ -181,14 +181,16 @@ above was repaired still holds the corrupted row; run this once against it.**
 
 Coverage: 14 metros (Atlanta, Austin, Boston, Chicago, Dallas-Fort Worth,
 Denver, Houston, Los Angeles, Miami, NYC, Phoenix, San Francisco, Seattle,
-Washington DC) × 5 trades (Electrical, HVAC, Kitchen Remodel, Plumbing,
-Roofing), 322 rows. Every metro now carries every trade. Every row has
+Washington DC) × 6 trades (Electrical, HVAC, Interior Painting, Kitchen
+Remodel, Plumbing, Roofing), 338 rows. Every metro now carries every trade. Every row has
 `sample_size=0` and a `provenance` string naming its source; rows are stored
 at city level (`region`) and query ZIPs are routed to their metro for lookup
 only.
 
-Interior painting is not in the dataset, so painting estimates have nothing
-to compare against.
+Interior painting carries one row per metro, the per-square-foot rate that
+painting estimates are actually priced in, which is also what the
+whole-estimate comparison scales by area. Washington DC additionally has
+whole-home and single-room rows.
 
 Rows added in the September 2026 pass carry their own source date in the
 CSV's optional `As_Of_Date` column, since they came from guides published

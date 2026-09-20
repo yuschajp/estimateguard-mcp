@@ -99,8 +99,8 @@ def test_nyc_and_seattle_have_hvac():
 def test_austin_and_houston_cover_all_five_trades():
     covered = _coverage()
     five = {"Electrical", "HVAC", "Kitchen Remodel", "Plumbing", "Roofing"}
-    assert covered["Austin"] == five
-    assert covered["Houston"] == five
+    assert five <= covered["Austin"]
+    assert five <= covered["Houston"]
 
 
 def test_every_metro_covers_every_trade():
@@ -108,6 +108,36 @@ def test_every_metro_covers_every_trade():
     five = {"Electrical", "HVAC", "Kitchen Remodel", "Plumbing", "Roofing"}
     missing = {city: sorted(five - trades) for city, trades in covered.items() if five - trades}
     assert not missing, f"metros missing a trade: {missing}"
+
+
+def test_interior_painting_covers_every_metro():
+    # Painting was absent from the dataset entirely, so a painting estimate
+    # had nothing to compare against anywhere.
+    covered = _coverage()
+    missing = sorted(c for c, trades in covered.items() if "Interior Painting" not in trades)
+    assert not missing, f"metros without interior painting: {missing}"
+
+
+def test_every_metro_has_a_painting_rate_estimates_are_priced_in():
+    # Painting estimates are priced per square foot, and that row is what the
+    # whole-estimate comparison scales by area.
+    rates = {
+        row["City"]
+        for row in _csv_rows()
+        if row["Trade"] == "Interior Painting"
+        and "per sq ft" in row["Service_Type"].lower()
+    }
+    assert rates == set(benchmarks.COVERED_REGIONS)
+
+
+def test_painting_rates_are_plausible_per_sqft_figures():
+    for row in _csv_rows():
+        if row["Trade"] != "Interior Painting":
+            continue
+        if "per sq ft" not in row["Service_Type"].lower():
+            continue
+        avg = float(row["Avg_Price"])
+        assert 1 <= avg <= 12, f"{row['City']}: {avg}/sq ft is not a painting rate"
 
 
 def test_a_derived_typical_says_so_in_its_source():
