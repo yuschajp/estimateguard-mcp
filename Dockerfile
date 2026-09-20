@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py costdata.py estimate_eval.py observations.py benchmarks.py ./
 COPY data/ ./data/
 COPY migrations/ ./migrations/
+COPY static/ ./static/
 
 # Render injects PORT; default to 8000 for local runs.
 ENV PORT=8000
