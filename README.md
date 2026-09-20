@@ -3,7 +3,7 @@
 Minimal remote MCP server exposing two tools over streamable HTTP.
 
 Cost figures come from a Postgres seed-benchmark table (`benchmark_ranges`,
-271 city-level rows across 12 metros and 5 trades, imported from the legacy
+322 city-level rows across 14 metros and 5 trades, imported from the legacy
 estimate-reviewer's published-guide research). Every seed row carries
 `sample_size=0` and a `provenance` string: seed benchmarks are published
 guide data, never observed EstimateGuard jobs, and the table is never
@@ -146,8 +146,9 @@ python3 tests/test_observations.py
 `migrations/001_benchmark_ranges.sql` creates the `benchmark_ranges` table
 (money is `NUMERIC`; the migration file is the single source of truth and is
 loaded by `benchmarks.py`). Import the vendored CSV
-(`data/benchmarks_7cities.csv`, the legacy estimate-reviewer's
-`COMPETITIVE_DATA_7_CITIES.csv` with one field quoted — see below):
+(`data/benchmarks_7cities.csv`: the legacy estimate-reviewer's
+`COMPETITIVE_DATA_7_CITIES.csv`, one field quoted to repair a shifted row,
+plus the rows appended in September 2026 — both described below):
 
 ```sh
 DATABASE_URL=postgres://... python3 scripts/import_benchmarks.py
@@ -162,8 +163,7 @@ rate above $1,000) and logs it, rather than storing prices that are not what
 their column names say. One shipped row needed this: an unquoted comma in
 `Panel Upgrade (200 amp, underground service)` had shifted every later
 column, so San Francisco served a $5,500 median for a $12,000 job and an
-$18,500 hourly labor rate. The CSV field is now quoted, which is the only
-byte that differs from the legacy file.
+$18,500 hourly labor rate. The CSV field is now quoted.
 
 Because the import only ever upserts, a row stored under a service type the
 CSV no longer contains — including one stored under a corrupted name — stays
@@ -179,12 +179,24 @@ It imports, then deletes any row the CSV no longer names. Idempotent, and
 the dry run prints what it would delete. **A database seeded before the row
 above was repaired still holds the corrupted row; run this once against it.**
 
-Coverage: 12 metros (Atlanta, Boston, Chicago, Dallas-Fort Worth, Denver,
-Los Angeles, Miami, NYC, Phoenix, San Francisco, Seattle, Washington DC) ×
-5 trades (Electrical, HVAC, Kitchen Remodel, Plumbing, Roofing), 271 rows.
-HVAC has no rows for NYC or Seattle. Every row has `sample_size=0` and a
-`provenance` string naming its source; rows are stored at city level
-(`region`) and query ZIPs are routed to their metro for lookup only.
+Coverage: 14 metros (Atlanta, Austin, Boston, Chicago, Dallas-Fort Worth,
+Denver, Houston, Los Angeles, Miami, NYC, Phoenix, San Francisco, Seattle,
+Washington DC) × 5 trades (Electrical, HVAC, Kitchen Remodel, Plumbing,
+Roofing), 322 rows. Every metro now carries every trade. Every row has
+`sample_size=0` and a `provenance` string naming its source; rows are stored
+at city level (`region`) and query ZIPs are routed to their metro for lookup
+only.
+
+Interior painting is not in the dataset, so painting estimates have nothing
+to compare against.
+
+Rows added in the September 2026 pass carry their own source date in the
+CSV's optional `As_Of_Date` column, since they came from guides published
+across several months; a row without one takes its dataset generation's
+date. Where a guide published a range but no typical figure, the midpoint is
+used and that row's `Data_Source` says so, so a derived middle never reads
+as a published one. `scripts/add_coverage_rows_2026_09.py` is the record of
+that pass, with each row's source URL and publication date.
 
 ## Observation store (Postgres)
 

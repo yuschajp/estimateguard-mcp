@@ -4,6 +4,10 @@ City-level cost benchmarks compiled from published cost guides (Angi,
 HomeAdvisor, regional contractor sources) in the legacy estimate-reviewer
 repository: 7 cities compiled 2026-08-03, expanded to 12 cities 2026-08-09
 (COMPETITIVE_DATA_7_CITIES.csv, vendored at data/benchmarks_7cities.csv).
+A later pass on 2026-09-20 added Austin and Houston and filled the HVAC hole
+in NYC and Seattle; those rows name their own publisher and carry their own
+publication date in the CSV's As_Of_Date column, and
+scripts/add_coverage_rows_2026_09.py records the source URL behind each one.
 The source repo's own commit message describes the expansion rows as
 "researched from Angi/HomeAdvisor/regional cost guides, 2026 pricing"; no
 notebook, scraper, or detailed methodology was found, so the exact
@@ -61,8 +65,12 @@ except Exception:  # pragma: no cover - optional at test time
 # manually compiled, scraped, or generated -- that was not established.
 AS_OF_ORIGINAL = "2026-08-03"  # 7-city data (doc date; committed 2026-08-04)
 AS_OF_EXPANSION = "2026-08-09"  # +5 cities (commit date)
+AS_OF_COVERAGE = "2026-09-20"  # +Austin, Houston, and the missing HVAC metros
 
-# Source date follows the dataset generation a row came from.
+# Source date follows the dataset generation a row came from. Rows added in
+# the 2026-09 pass carry their own source page's date in the CSV's
+# As_Of_Date column instead, which is more accurate than a generation date:
+# the guides they came from were published across several months.
 _REGION_AS_OF_DATE = {
     "Chicago": AS_OF_ORIGINAL,
     "Denver": AS_OF_ORIGINAL,
@@ -76,13 +84,16 @@ _REGION_AS_OF_DATE = {
     "Dallas-Fort Worth": AS_OF_EXPANSION,
     "San Francisco": AS_OF_EXPANSION,
     "Washington DC": AS_OF_EXPANSION,
+    "Austin": AS_OF_COVERAGE,
+    "Houston": AS_OF_COVERAGE,
 }
 
 PROVENANCE_TEMPLATE = (
     "Seed benchmark compiled from published cost guides "
     "(Angi, HomeAdvisor, regional contractor sources). Exact collection "
     "methodology not documented in the source repository. "
-    "Original 7-city data 2026-08-03; expanded to 12 cities 2026-08-09. "
+    "Original 7-city data 2026-08-03; expanded to 12 cities 2026-08-09; "
+    "Austin, Houston and the missing HVAC metros added 2026-09-20. "
     "Row source: {source}. "
     "Not observed EstimateGuard job data (sample_size=0)."
 )
@@ -95,11 +106,15 @@ PROVENANCE_TEMPLATE = (
 # stored and labeled at city level, never as zip3-level data.
 _REGION_ZIP3S: dict[str, list[str]] = {
     "Atlanta": ["300", "301", "302", "303"],
+    "Austin": ["786", "787"],
     "Boston": ["010", "011", "012", "013", "014", "015", "016", "017", "018",
                "019", "020", "021", "022", "023", "024", "025", "026", "027"],
     "Chicago": ["600", "601", "602", "603", "604", "605", "606", "607", "608"],
     "Dallas-Fort Worth": ["750", "751", "752", "753", "754", "760", "761", "762"],
     "Denver": ["800", "801", "802", "803", "804"],
+    # Houston-The Woodlands-Sugar Land: city, Conroe, Katy/Sugar Land, and the
+    # Galveston/Texas City end of the metro.
+    "Houston": ["770", "771", "772", "773", "774", "775"],
     "Los Angeles": ["900", "901", "902", "903", "904", "905", "906", "907",
                     "908", "910", "911", "912", "913", "914", "915", "916",
                     "917", "918"],
@@ -172,6 +187,29 @@ def _parse_low_high(raw: str) -> tuple[Optional[Decimal], Optional[Decimal]]:
         return _to_decimal(lo_s), _to_decimal(hi_s)
     value = _to_decimal(text)
     return value, value
+
+
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _row_as_of_date(csv_row: dict, region: str) -> str:
+    """The date this row's figures were published, or its generation date.
+
+    Rows compiled in one pass from guides published across several months
+    are more honestly dated per row than per dataset generation, so the CSV
+    carries an optional ``As_Of_Date``. A malformed value is ignored rather
+    than stored: a wrong date would misrepresent how current a figure is.
+    """
+    raw = (csv_row.get("As_Of_Date") or "").strip()
+    if _ISO_DATE_RE.match(raw):
+        return raw
+    if raw:
+        print(
+            f"[benchmarks] ignoring unparseable As_Of_Date {raw!r} for "
+            f"{_row_label(csv_row)}; using the region's date",
+            file=sys.stderr, flush=True,
+        )
+    return _REGION_AS_OF_DATE.get(region, AS_OF_EXPANSION)
 
 
 def _service_basis(service_type: str) -> str:
@@ -390,8 +428,9 @@ def _normalize_row(csv_row: dict) -> Optional[dict]:
         "permit_cost_high": permit_hi,
         "sample_size": 0,
         "provenance": PROVENANCE_TEMPLATE.format(source=source),
-        # Source date follows the dataset generation the row came from.
-        "as_of_date": _REGION_AS_OF_DATE.get(region, AS_OF_EXPANSION),
+        # A row that names its own source date uses it; otherwise the date
+        # follows the dataset generation the row came from.
+        "as_of_date": _row_as_of_date(csv_row, region),
     }
     return row if _ordering_valid(row, csv_row) else None
 

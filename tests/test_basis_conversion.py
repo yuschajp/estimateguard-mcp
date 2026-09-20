@@ -170,7 +170,7 @@ def test_vendored_csv_imports_every_row_cleanly():
         rows = list(csv.DictReader(f))
     normalized = [benchmarks._normalize_row(dict(r)) for r in rows]
     assert all(n is not None for n in normalized)
-    assert len(normalized) == 271
+    assert len(normalized) == 322
 
 
 # ---------------------------------------------------------------------------
