@@ -186,6 +186,36 @@ _NON_NAME_LABELS = frozenset(
 _NAME_TOKEN_RE = re.compile(r"^[A-Z][a-z'-]{1,20}$")
 _LINE_ITEM_HINT_RE = re.compile(r"^\s*\d+\s*[.)]\s+\S.*[$@]")
 
+# Crew/labor-anchored worker-name stripping for line-item descriptions.
+# Conservative by construction: a name is only removed when it is adjacent
+# to an explicit crew/labor/foreman/installer word, or is an
+# initial-plus-surname form (J. Martinez). Brand and material names never
+# match: "Pella", "Owens Corning" and "James Hardie" appear without a crew
+# word nearby, and chained initials ("A.O. Smith") are excluded by
+# lookbehind. Bare "Martinez crew" (surname directly before a crew word,
+# no other signal) is deliberately NOT stripped: it is indistinguishable
+# from a product word in the same position ("Windows labor 8 hrs"), and
+# mangling that would corrupt the user-facing description.
+_CREW_WORD = r"(?i:crews?|labor|foreman|installers?)"
+_PERSON_NAME = r"[A-Z][a-z]+(?:'[a-z]+)?"
+_INITIAL_NAME = r"[A-Z]\.\s*" + _PERSON_NAME
+# Crew word followed by a name: "foreman Johnson", "labor, Martinez",
+# "crew J. Martinez". The Day lookahead keeps "Labor Day" intact.
+_CREW_THEN_NAME_RE = re.compile(
+    r"\b(" + _CREW_WORD + r")\s*,?\s*(?!Day\b)"
+    r"(?:" + _INITIAL_NAME + r"|" + _PERSON_NAME + r")\b"
+)
+# Possessive name before a crew word: "Martinez's crew".
+_POSSESSIVE_CREW_RE = re.compile(
+    r"\b" + _PERSON_NAME + r"'s\s+(" + _CREW_WORD + r")\b"
+)
+# Initial-plus-surname anywhere ("J. Martinez"), except when chained to a
+# previous initial ("A.O. Smith"). Two fixed-width lookbehinds because
+# Python requires fixed-width lookbehind patterns.
+_INITIAL_SURNAME_RE = re.compile(
+    r"(?<![A-Z]\.)(?<![A-Z]\.\s)\b" + _INITIAL_NAME + r"\b"
+)
+
 
 def _sub_count(pattern: re.Pattern[str], text: str, repl: str = "") -> tuple[str, int]:
     """Substitute pattern with repl, returning (new_text, match_count)."""
@@ -249,16 +279,53 @@ def _strip_header_names(text: str) -> tuple[str, int]:
     return "\n".join(header + lines[body_at:]), count
 
 
+def _strip_crew_names(text: str) -> tuple[str, int]:
+    """Remove worker names anchored to crew/labor words, anywhere in the text.
+
+    Targets the patterns that actually appear in line-item descriptions
+    ("Labor, J. Martinez crew", "foreman Johnson") while leaving brand and
+    material names untouched. Returns (cleaned_text, substitution_count).
+    """
+    count = 0
+    # Each iteration strictly shortens the text, so this always terminates;
+    # the loop lets multi-word names collapse ("crew Mary Johnson" ->
+    # "crew Johnson" -> "crew").
+    for _ in range(4):
+        changed = False
+
+        def _keep_crew(match: re.Match[str]) -> str:
+            nonlocal count, changed
+            count += 1
+            changed = True
+            return match.group(1)
+
+        def _drop(match: re.Match[str]) -> str:
+            nonlocal count, changed
+            count += 1
+            changed = True
+            return ""
+
+        text = _CREW_THEN_NAME_RE.sub(_keep_crew, text)
+        text = _POSSESSIVE_CREW_RE.sub(_keep_crew, text)
+        text = _INITIAL_SURNAME_RE.sub(_drop, text)
+        if not changed:
+            break
+    return text, count
+
+
 def strip_pii(text: str) -> tuple[str, dict[str, int]]:
     """Remove PII from estimate text.
 
     Email/phone/license/address patterns are unambiguous and apply to the
     whole text. Person names and contractor business names are stripped from
-    the header block only, so priced line items are never altered.
+    the header block only. Additionally, worker names anchored to an
+    explicit crew/labor/foreman/installer word ("Labor, J. Martinez crew",
+    "foreman Johnson") are stripped everywhere, including inside line-item
+    descriptions; brand and material names are never affected by that pass.
 
     Returns (cleaned_text, counts) where counts maps each category to the
     number of substitutions made. Categories: email, phone, license,
-    address, contractor, name.
+    address, contractor, name, crew.
     """
     counts: dict[str, int] = {}
     text, counts["email"] = _sub_count(_EMAIL_RE, text)
@@ -278,12 +345,14 @@ def strip_pii(text: str) -> tuple[str, dict[str, int]]:
     header_lines = header_text.split("\n") if header_text else []
     header_lines, header_names = _strip_standalone_names(header_lines)
     counts["name"] = counts.get("name", 0) + header_names
-    return "\n".join(header_lines + lines[body_at:]), counts
+    text = "\n".join(header_lines + lines[body_at:])
+    text, counts["crew"] = _strip_crew_names(text)
+    return text, counts
 
 
 def log_strip_counts(counts: dict[str, int]) -> None:
     parts = " ".join(f"{cat}={counts.get(cat, 0)}" for cat in
-                     ("name", "address", "phone", "email", "contractor", "license"))
+                     ("name", "crew", "address", "phone", "email", "contractor", "license"))
     print(f"[pii-strip] {parts}", file=sys.stderr, flush=True)
 
 

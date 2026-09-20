@@ -59,6 +59,59 @@ def test_strip_pii_does_not_eat_line_items():
     assert cleaned == text
 
 
+def test_strip_pii_removes_crew_names_from_descriptions():
+    cases = [
+        # (raw line, names that must be gone, words that must survive)
+        ("1. Labor, J. Martinez crew 8 hours @ $75.00 = $600.00\n",
+         ["Martinez", "J. Martinez"], ["Labor", "crew"]),
+        ("1. Supervision, foreman Johnson 4 hours @ $95.00 = $380.00\n",
+         ["Johnson"], ["foreman"]),
+        ("1. Martinez's crew 8 hours @ $75.00 = $600.00\n",
+         ["Martinez"], ["crew"]),
+        ("1. crew Mary Johnson 8 hours @ $75.00 = $600.00\n",
+         ["Mary", "Johnson"], ["crew"]),
+        ("1. Install, R. Smith labor 8 hours @ $75.00 = $600.00\n",
+         ["R. Smith"], ["labor"]),
+    ]
+    for raw, gone, survivors in cases:
+        cleaned, counts = strip_pii(raw)
+        for name in gone:
+            assert name not in cleaned, f"{name!r} leaked: {cleaned!r}"
+        for word in survivors:
+            assert word in cleaned, f"{word!r} wrongly removed: {cleaned!r}"
+        assert counts.get("crew", 0) >= 1, f"no crew strips counted: {counts}"
+
+
+def test_strip_pii_preserves_brand_names():
+    # Conservative by design: product/brand names are never touched, even
+    # when they look like personal names.
+    brands = [
+        "1. Install Pella windows 10 units @ $400.00 = $4,000.00\n",
+        "1. Owens Corning shingles 20 squares @ $425.00 = $8,500.00\n",
+        "1. James Hardie siding 1500 sq ft @ $8.50 = $12,750.00\n",
+        "1. A.O. Smith water heater 1 each @ $1,200.00 = $1,200.00\n",
+        "1. GAF Timberline shingles 20 squares @ $450.00 = $9,000.00\n",
+    ]
+    for raw in brands:
+        cleaned, counts = strip_pii(raw)
+        assert cleaned == raw, f"brand mangled: {cleaned!r}"
+        assert counts.get("crew", 0) == 0, f"false positive: {counts}"
+
+
+def test_strip_pii_crew_conservative_residuals():
+    # Deliberately NOT stripped: a bare surname directly before a crew word
+    # is indistinguishable from a product word in the same slot
+    # ("Windows labor 8 hrs"), and mangling that would corrupt the
+    # user-facing description. Documented limitation, not a bug.
+    for raw in [
+        "1. Martinez crew 8 hours @ $75.00 = $600.00\n",
+        "1. Windows labor 8 hours @ $75.00 = $600.00\n",
+    ]:
+        cleaned, counts = strip_pii(raw)
+        assert cleaned == raw, f"over-stripped: {cleaned!r}"
+        assert counts.get("crew", 0) == 0
+
+
 def test_zip3():
     assert zip3_of("10001") == "100"
     assert zip3_of("90210") == "902"

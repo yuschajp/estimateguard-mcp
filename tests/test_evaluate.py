@@ -131,6 +131,31 @@ def test_insufficient_data():
     assert "excluded from the overall rating" in res["coverage_note"]
 
 
+def test_variance_entries_carry_benchmark_labels():
+    text = (
+        "1. Install shingles 20 squares @ $575.00 = $11,500.00\n"
+        "2. Haul away debris 1 lot @ $20,000.00 = $20,000.00\n"
+    )
+    res = evaluate(text, "10001", trade="roofing")
+    assert "error" not in res, res
+    prov_list = res["benchmark_provenance"]
+    assert isinstance(prov_list, list) and prov_list, "provenance list missing"
+    labeled = [e for e in res["per_line_variance"] if e["benchmark_median"] is not None]
+    assert labeled, "expected at least one benchmarked line"
+    for e in labeled:
+        # sample_size is 0 on the live DB rows; the offline scaffolding used
+        # in tests carries illustrative values. Either way it must be an int.
+        assert isinstance(e["sample_size"], int) and e["sample_size"] >= 0, e
+        ref = e["provenance_ref"]
+        assert isinstance(ref, int) and 0 <= ref < len(prov_list), e
+        assert "published cost guides" in prov_list[ref] or "illustrative" in prov_list[ref], prov_list[ref]
+    # no_data entries carry no benchmark label at all.
+    for e in res["per_line_variance"]:
+        if e["flag"] == "no_data":
+            assert "sample_size" not in e, e
+            assert "provenance_ref" not in e, e
+
+
 def test_truncation():
     lines = "\n".join(
         f"{i}. Install shingles 20 squares @ $575.00 = $11,500.00" for i in range(1, 21)

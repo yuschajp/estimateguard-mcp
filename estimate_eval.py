@@ -634,6 +634,23 @@ def evaluate(
     findings.append(overall_text)
     findings = findings[:MAX_FINDINGS]
 
+    # ---- benchmark provenance labels (deduplicated at response level) ----
+    # Provenance strings vary per benchmark row (each names its own published
+    # source), so repeating the full ~250-char string on every line would eat
+    # the response budget. Distinct strings go once in
+    # resp["benchmark_provenance"]; each labeled variance entry carries a
+    # short integer ref plus its sample_size, matching get_cost_range.
+    benchmark_provenance: list[str] = []
+    _provenance_index: dict[str, int] = {}
+    for line in lines:
+        bench = line["benchmark"]
+        if not bench:
+            continue
+        prov = bench.get("provenance") or ""
+        if prov not in _provenance_index:
+            _provenance_index[prov] = len(benchmark_provenance)
+            benchmark_provenance.append(prov)
+
     # ---- per-line variance (truncate to largest-dollar lines) ----
     variance_entries = [
         {
@@ -646,6 +663,17 @@ def evaluate(
                 str(round_4(line["variance"])) if line["variance"] is not None else None
             ),
             "flag": line["flag"],
+            # Entries with flag "no_data" carry no benchmark and get no label.
+            **(
+                {
+                    "sample_size": line["benchmark"].get("sample_size"),
+                    "provenance_ref": _provenance_index[
+                        line["benchmark"].get("provenance") or ""
+                    ],
+                }
+                if line["benchmark"]
+                else {}
+            ),
         }
         for line in lines
     ]
@@ -719,6 +747,8 @@ def evaluate(
         "findings": findings,
         "calculation_trail": trail_steps,
         "coverage_note": coverage_note,
+        # Distinct benchmark provenance strings (see per-line provenance_ref).
+        "benchmark_provenance": benchmark_provenance,
     }
 
     # ---- response ceiling: ~2000 tokens ----
