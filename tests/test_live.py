@@ -82,9 +82,23 @@ async def main() -> None:
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "asphalt shingle 2000 sqft", "zip": "80202"}))
     check("seed benchmark: denver roofing", data, True, failures)
 
-    # No per-square roofing benchmark exists for NYC: honest null, not a guess.
+    # NYC publishes roofing per square foot, not per square. A roofing square
+    # is exactly 100 square feet, so the per-square answer is that row
+    # restated -- arithmetic, not a guess, and it says so in its provenance.
+    # The source row published an average and a high but no low, so this is
+    # checked field by field rather than with check()'s full-range rule.
+    name = "per-square NYC answered by conversion"
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "per square", "zip": "10001"}))
-    check("no per-square data for NYC", data, False, failures)
+    print(f"--- {name}")
+    print(json.dumps(data, indent=2))
+    if data.get("reason"):
+        failures.append(f"{name}: returned a reason instead of a figure")
+    if data.get("median") != "650.00":
+        failures.append(f"{name}: expected 650.00 (6.50/sq ft x 100)")
+    if data.get("unit") != "per roofing square":
+        failures.append(f"{name}: answer is not labeled per roofing square")
+    if "Restated by EstimateGuard" not in (data.get("provenance") or ""):
+        failures.append(f"{name}: conversion is not disclosed in provenance")
 
     # Ambiguous scope: several flat roofing benchmarks near Chicago.
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "flat roof", "zip": "60601"}))
