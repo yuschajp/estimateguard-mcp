@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — EstimateGuard MCP Server</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         line-height: 1.6; color: #1a1a1a; max-width: 760px; margin: 0 auto; padding: 2rem 1.25rem; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #1a1a1a; padding-bottom: .5rem; }
+  h2 { font-size: 1.25rem; margin-top: 2rem; }
+  code { background: #f4f4f4; padding: .1rem .35rem; border-radius: 4px; font-size: .92em; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: #f4f4f4; }
+  .placeholder { background: #fff3cd; padding: .1rem .35rem; border-radius: 4px; font-weight: 600; }
+  footer { margin-top: 3rem; color: #666; font-size: .9rem; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy — EstimateGuard MCP Server</h1>
+<p><strong>Last updated:</strong> <span class="placeholder">[DATE]</span></p>
+<p>This policy describes what the EstimateGuard MCP server
+(<code>https://estimateguard-mcp.onrender.com</code>) does with information you
+send it. It is written to match the server's actual behavior.</p>
+
+<h2>1. What you send, and what happens to it</h2>
+<p>The server offers two functions. When you use them, you transmit:</p>
+<ul>
+  <li><strong>Cost-range lookup:</strong> a trade (e.g. "roofing"), a short job
+    description, and a 5-digit US ZIP code. This input is used only to answer
+    the lookup. It is <strong>not</strong> stored.</li>
+  <li><strong>Estimate evaluation:</strong> the text of a contractor estimate,
+    a 5-digit US ZIP code, and optionally the trade and the total printed on
+    the estimate. The text is processed in memory to produce the evaluation
+    result that is returned to you.</li>
+</ul>
+
+<h2>2. Personal information is stripped before anything is stored</h2>
+<p>Before the server builds any stored record from an estimate, it scans the
+text and removes:</p>
+<ul>
+  <li>email addresses,</li>
+  <li>phone numbers,</li>
+  <li>contractor license numbers,</li>
+  <li>street addresses (including city / state / ZIP when attached),</li>
+  <li>contractor or business names appearing in the estimate header,</li>
+  <li>person names — both labeled ones (e.g. "Prepared for: Jane Doe") and
+    standalone name lines in the header block before the first priced line.</li>
+</ul>
+<p>Email addresses, phone numbers, license numbers, and street addresses are
+removed everywhere in the text, including inside line-item descriptions. Names
+and business names are removed from the header block (everything before the
+first priced line item). Worker names are removed from line descriptions when
+they appear next to a crew, labor, foreman, or installer word — "J. Martinez"
+in "Labor, J. Martinez crew", for example — and initial-plus-surname forms are
+removed wherever they appear. Names in other positions in a description may
+remain; brand and material names are never removed.</p>
+<p>The server logs only <em>counts</em> per category (for example,
+<code>email=1 phone=0</code>) for auditing. These counts contain no personal
+information.</p>
+
+<h2>3. What is stored</h2>
+<p>From each evaluated estimate, the server stores <strong>one row per priced
+line item</strong> containing only these fields:</p>
+<table>
+  <tr><th>Field</th><th>What it holds</th></tr>
+  <tr><td><code>observed_at</code></td><td>timestamp of the evaluation</td></tr>
+  <tr><td><code>zip3</code></td><td><strong>first 3 digits only</strong> of the ZIP code you sent (e.g. <code>100</code> from <code>10001</code>)</td></tr>
+  <tr><td><code>trade</code></td><td>trade name, e.g. <code>roofing</code></td></tr>
+  <tr><td><code>scope</code></td><td>pricing basis derived from the unit, e.g. <code>per_square</code></td></tr>
+  <tr><td><code>line_description</code></td><td>line-item description after the stripping in §2</td></tr>
+  <tr><td><code>quantity</code></td><td>quantity as a number</td></tr>
+  <tr><td><code>unit</code></td><td>unit as written, e.g. <code>squares</code></td></tr>
+  <tr><td><code>unit_price</code></td><td>unit price recomputed by the server</td></tr>
+  <tr><td><code>computed_line_total</code></td><td>quantity × unit price, recomputed by the server</td></tr>
+  <tr><td><code>source</code></td><td>provenance stamp: <code>production</code>, <code>test</code>, or <code>verification</code></td></tr>
+</table>
+<p>These rows contain no email address, phone number, license number, street
+address, full ZIP code, or account identifier, and no name from the estimate
+header. As noted in §2, a name appearing inside a line-item description is not
+removed and may be stored. No row carries an identifier that would permit it to
+be linked to the person who submitted the estimate.</p>
+
+<h2>4. What is never stored</h2>
+<ul>
+  <li>The <strong>raw estimate text is never persisted</strong> — not in the
+    database and not in application files. It exists only in memory while your
+    evaluation is computed, then is discarded.</li>
+  <li>Full 5-digit ZIP codes are never stored; only the 3-digit prefix.</li>
+  <li>Anything the stripping step in §2 removes is never stored.</li>
+</ul>
+
+<h2>5. How it is stored</h2>
+<p>Stored rows live in a PostgreSQL database hosted by Render in the United
+States (Oregon region). Render takes automatic encrypted backups of that
+database for disaster recovery, retained on a rolling
+7-day window (Render's published point-in-time recovery window for Pro
+workspaces); stored rows
+therefore also exist in those backups until they age out. There are no other
+copies: no data warehouse, no exports, no analytics store.</p>
+
+<h2>6. Retention</h2>
+<p>Two tiers:</p>
+<ul>
+  <li><strong>PII-stripped line-item observations (§3) are retained
+    indefinitely.</strong> They are kept because they are aggregated into
+    regional cost benchmarks — plainly: many stripped-down line items from
+    many people are combined to show what kinds of jobs typically cost in an
+    area. Because each row carries no contact details, addresses, or account
+    identifiers, keeping them does not track anyone.</li>
+  <li><strong>Raw estimate text is never persisted</strong> (see §4), so there
+    is nothing to retain or delete.</li>
+  <li><strong>Request logs</strong> (standard web-server access logs:
+    timestamp, requested path, response status, client IP address — they do
+    not contain estimate text) are retained for
+    14 days (Render's published log retention for Pro workspaces) and then purged.</li>
+</ul>
+
+<h2>7. Sharing</h2>
+<p><strong>Your estimate text is never sent anywhere.</strong> Parsing and all
+arithmetic run entirely inside this server using pattern matching and exact
+decimal calculation. No language model, no external API, and no third-party
+service is involved in evaluating your estimate. The server makes no outbound
+network calls during evaluation other than to its own database.</p>
+<p>The only third party involved is <strong>Render</strong>, which hosts the
+server and its PostgreSQL database in the United States. Render holds the
+stored rows described in §3 and their backups (§5) as our infrastructure
+provider; it does not receive estimate text, and it does not use this data for
+its own purposes.</p>
+<p>Data is not sold, rented, or shared with advertisers, analytics providers,
+data brokers, or anyone else.</p>
+
+<h2>8. Security</h2>
+<p>Traffic to the server is encrypted with HTTPS. Database credentials are
+held server-side and never exposed to clients. The public endpoints require no
+account, so there are no passwords to protect.</p>
+
+<h2>9. Your choices</h2>
+<p>Because stored observations carry no identifier linking them to you, there
+is no individual record to correct or delete on request. If you do not want a
+line item recorded at all, do not submit the estimate — the cost-range lookup
+(§1) stores nothing.</p>
+
+<h2>10. Changes to this policy</h2>
+<p>If this policy changes, the updated version will be posted at this URL with
+a new "Last updated" date.</p>
+
+<h2>11. Contact</h2>
+<p>Questions about this policy: <span class="placeholder">[CONTACT]</span>
+(operated by <span class="placeholder">[OPERATOR]</span>,
+<span class="placeholder">[JURISDICTION]</span>).</p>
+
+<footer>
+  <p>Governing law: <span class="placeholder">[GOVERNING LAW]</span>. This
+  policy makes no claim of compliance with any specific privacy regulation;
+  it describes the server's behavior as implemented.</p>
+</footer>
+
+</body>
+</html>

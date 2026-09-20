@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EstimateGuard MCP Server — Documentation</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         line-height: 1.6; color: #1a1a1a; max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem; }
+  h1 { font-size: 1.9rem; border-bottom: 2px solid #1a1a1a; padding-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: .35rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.75rem; }
+  code { background: #f4f4f4; padding: .1rem .35rem; border-radius: 4px; font-size: .92em; }
+  pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: .85rem; line-height: 1.5; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ccc; padding: .5rem .75rem; text-align: left; vertical-align: top; }
+  th { background: #f4f4f4; }
+  .note { background: #f8f9fa; border-left: 4px solid #6c757d; padding: .75rem 1rem; margin: 1rem 0; }
+  .ok { background: #f0f9f0; border-left: 4px solid #2e7d32; padding: .75rem 1rem; margin: 1rem 0; }
+  footer { margin-top: 3rem; color: #666; font-size: .9rem; border-top: 1px solid #ddd; padding-top: 1rem; }
+</style>
+</head>
+<body>
+
+<h1>EstimateGuard MCP Server — Documentation</h1>
+<p>EstimateGuard answers one question: <em>is this home-project price
+reasonable for this area?</em> It exposes two tools over MCP (streamable HTTP)
+plus a public health endpoint. No login, no API key — the server is
+authless.</p>
+<ul>
+  <li>MCP endpoint: <code>https://estimateguard-mcp.onrender.com/mcp</code></li>
+  <li>Health: <code>https://estimateguard-mcp.onrender.com/health</code></li>
+</ul>
+<p>All examples below are real requests and responses captured from the live
+server.</p>
+
+<h2>Tool 1 — <code>get_cost_range</code></h2>
+<p><strong>What it does, plainly:</strong> you name a trade, describe the job,
+and give a US ZIP code; it answers with the low, typical (median), and high
+price for that job in the nearest covered metro — or tells you plainly it has
+no data, instead of guessing.</p>
+
+<h3>Inputs</h3>
+<table>
+  <tr><th>Name</th><th>Type</th><th>Required</th><th>Meaning</th></tr>
+  <tr><td><code>trade</code></td><td>string</td><td>yes</td><td>e.g. <code>"roofing"</code>, <code>"interior painting"</code>, <code>"hvac"</code></td></tr>
+  <tr><td><code>scope</code></td><td>string</td><td>yes</td><td>short job description, e.g. <code>"per sq ft"</code>, <code>"full replacement"</code>; used to pick the right pricing basis</td></tr>
+  <tr><td><code>zip</code></td><td>string</td><td>yes</td><td>5-digit US ZIP code, e.g. <code>"80202"</code></td></tr>
+</table>
+
+<h3>Output shape</h3>
+<p>Either a range (<code>reason</code> is <code>null</code>) or all
+<code>null</code>s with a <code>reason</code> string. Fields:</p>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>low</code> / <code>median</code> / <code>high</code></td><td>price bounds in USD, as decimal strings (<code>null</code> when the source published no bound)</td></tr>
+  <tr><td><code>unit</code></td><td>what the prices are per, e.g. <code>"per square foot"</code></td></tr>
+  <tr><td><code>sample_size</code></td><td>how many past jobs the range is based on — always <code>0</code> for seed benchmarks (see provenance note)</td></tr>
+  <tr><td><code>as_of_date</code></td><td>date the figures were compiled (<code>YYYY-MM-DD</code>)</td></tr>
+  <tr><td><code>provenance</code></td><td>where the figures came from (verbatim below)</td></tr>
+  <tr><td><code>service_type</code></td><td>the specific benchmarked job, e.g. <code>"Cost per Sq Ft (Asphalt)"</code></td></tr>
+  <tr><td><code>region</code></td><td>the metro the benchmark covers, e.g. <code>"Denver"</code> — city-level data is never presented as ZIP-level data</td></tr>
+  <tr><td><code>labor_rate_low</code> / <code>labor_rate_high</code></td><td>hourly labor-rate bounds when the source published them, else <code>null</code></td></tr>
+  <tr><td><code>permit_cost_low</code> / <code>permit_cost_high</code></td><td>permit-cost bounds when the source published them, else <code>null</code></td></tr>
+  <tr><td><code>reason</code></td><td><code>null</code> when a range is returned; otherwise why no range is returned</td></tr>
+</table>
+
+<h3>Worked example — a range is found</h3>
+<p>Request:</p>
+<pre>{
+  "trade": "roofing",
+  "scope": "per sq ft",
+  "zip": "80202"
+}</pre>
+<p>Response (actual):</p>
+<pre>{
+  "low": null,
+  "median": "5.50",
+  "high": "7.00",
+  "unit": "per square foot",
+  "sample_size": 0,
+  "as_of_date": "2026-08-03",
+  "provenance": "Seed benchmark compiled from published cost guides (Angi, HomeAdvisor, regional contractor sources). Exact collection methodology not documented in the source repository. Original 7-city data 2026-08-03; expanded to 12 cities 2026-08-09. Row source: Denver Roofing. Not observed EstimateGuard job data (sample_size=0).",
+  "service_type": "Cost per Sq Ft (Asphalt)",
+  "region": "Denver",
+  "labor_rate_low": null,
+  "labor_rate_high": null,
+  "permit_cost_low": "300.00",
+  "permit_cost_high": "500.00",
+  "reason": null
+}</pre>
+
+<h3>When there is no data — this is correct behavior, not an error</h3>
+<p>If the trade has no benchmark near the ZIP, every field is
+<code>null</code> and <code>reason</code> explains why. Example request
+<code>{"trade": "hvac", "scope": "furnace replacement", "zip": "10001"}</code>
+(actual response, trimmed to the fields that matter):</p>
+<pre>{
+  "low": null,
+  "median": null,
+  "high": null,
+  ...
+  "reason": "We don't have cost data for hvac near ZIP 10001 yet, so we won't guess at a range."
+}</pre>
+<p>If the scope doesn't match any pricing basis the server has, it says which
+pricings it <em>does</em> have instead of guessing. Example request
+<code>{"trade": "roofing", "scope": "per square", "zip": "80202"}</code>
+(actual <code>reason</code>):</p>
+<pre>"For roofing near ZIP 80202 we only have pricing per project (flat price) or per square foot; 'per square' doesn't match, so we won't guess at a range."</pre>
+
+<div class="note"><strong>On invalid input</strong> (empty trade, malformed
+ZIP), the same shape is returned with <code>reason</code> set, e.g.
+<code>"Please tell me the trade, for example 'roofing' or 'interior painting'."</code>
+or <code>"'abc' doesn't look like a 5-digit US ZIP code."</code> — never a
+stack trace.</div>
+
+<h3>Data provenance — read this before quoting the numbers</h3>
+<p>The cost ranges are <strong>seed benchmarks compiled from published cost
+guides</strong> (Angi, HomeAdvisor, regional contractor sources). The exact
+collection methodology was not documented in the source material, and the
+figures have <strong>not</strong> been independently verified. Every row
+carries <code>sample_size: 0</code> and the provenance string shown above.
+Do not describe these ranges as observed, measured, or verified data — they
+are researched guide figures, and the server labels them as such on every
+response.</p>
+
+<h2>Tool 2 — <code>evaluate_estimate</code></h2>
+<p><strong>What it does, plainly:</strong> you paste a contractor's written
+estimate; the server parses each priced line, recomputes every number itself
+in exact decimal arithmetic, flags any line whose printed total doesn't match
+quantity × price, compares each unit price against the local benchmark, and
+returns a plain-language verdict. It also records one PII-stripped row per line item for future regional benchmarks (see the
+<a href="privacy-policy.html">privacy policy</a>).</p>
+
+<h3>Inputs</h3>
+<table>
+  <tr><th>Name</th><th>Type</th><th>Required</th><th>Meaning</th></tr>
+  <tr><td><code>estimate_text</code></td><td>string</td><td>yes</td><td>the estimate; each priced line should look like <code>"Install shingles 20 squares @ $425.00 = $8,500.00"</code></td></tr>
+  <tr><td><code>zip</code></td><td>string</td><td>yes</td><td>5-digit US ZIP code</td></tr>
+  <tr><td><code>trade</code></td><td>string</td><td>no</td><td>e.g. <code>"roofing"</code>; inferred from the text when omitted</td></tr>
+  <tr><td><code>quoted_total</code></td><td>number</td><td>no</td><td>the total printed on the estimate; converted to exact decimal on arrival</td></tr>
+</table>
+
+<h3>Output shape (success)</h3>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>parsed_line_items</code></td><td>each line: <code>description</code>, <code>quantity</code>, <code>unit</code>, <code>unit_price</code>, <code>computed_line_total</code>, <code>stated_line_total</code>, <code>mismatch</code> (true when the printed total ≠ recomputed total)</td></tr>
+  <tr><td><code>computed_total</code></td><td>sum of recomputed line totals, decimal string</td></tr>
+  <tr><td><code>quoted_total</code></td><td>echo of the quoted total, decimal string (<code>null</code> when not given/found)</td></tr>
+  <tr><td><code>total_discrepancy</code></td><td><code>computed_total − quoted_total</code>, decimal string (<code>null</code> when no quoted total)</td></tr>
+  <tr><td><code>per_line_variance</code></td><td>per line: <code>description</code>, <code>quoted_unit_price</code>, <code>benchmark_median</code>, <code>variance_pct</code>, <code>flag</code> (<code>high</code> / <code>low</code> / <code>normal</code> / <code>no_data</code>). Lines with benchmark data also carry <code>sample_size</code> (0 for seed benchmarks) and <code>provenance_ref</code> (index into <code>benchmark_provenance</code>); <code>no_data</code> lines carry neither</td></tr>
+  <tr><td><code>benchmark_provenance</code></td><td>deduplicated list of the full benchmark provenance strings cited by <code>per_line_variance[].provenance_ref</code>; empty when no line had benchmark data</td></tr>
+  <tr><td><code>overall_flag</code></td><td><code>below_range</code> / <code>within_range</code> / <code>above_range</code> / <code>insufficient_data</code></td></tr>
+  <tr><td><code>findings</code></td><td>plain-language findings a homeowner can act on</td></tr>
+  <tr><td><code>calculation_trail</code></td><td>every arithmetic step with inputs and results, so any number can be checked</td></tr>
+  <tr><td><code>coverage_note</code></td><td>how many lines had local benchmark data and what was excluded from the verdict</td></tr>
+</table>
+<p>On bad input the tool returns <code>{"error": "&lt;code&gt;", "reason": "&lt;message&gt;"}</code>
+instead — never a stack trace. Observed codes: <code>empty_estimate</code>,
+<code>invalid_zip</code>, <code>no_line_items</code>,
+<code>invalid_quoted_total</code>, <code>no_coverage</code>,
+<code>input_too_large</code>.</p>
+
+<h3>Worked example</h3>
+<p>Request (actual):</p>
+<pre>{
+  "estimate_text": "1. Tear off old shingles 20 squares @ $350.00/square = $7,000.00\n2. Install architectural shingles 20 squares @ $425.00/square = $8,500.00\n3. Replace pipe flashing 6 each @ $85.00 = $510.00\n4. Dumpster and disposal 1 lot @ $900.00 = $900.00",
+  "zip": "10001",
+  "trade": "roofing",
+  "quoted_total": 16910.00
+}</pre>
+<p>Response (actual; <code>calculation_trail</code> excerpted — the live
+response contains one entry per computation step):</p>
+<pre>{
+  "parsed_line_items": [
+    {"description": "Tear off old shingles", "quantity": "20", "unit": "squares",
+     "unit_price": "350.00", "computed_line_total": "7000.00",
+     "stated_line_total": "7000.00", "mismatch": false},
+    {"description": "Install architectural shingles", "quantity": "20", "unit": "squares",
+     "unit_price": "425.00", "computed_line_total": "8500.00",
+     "stated_line_total": "8500.00", "mismatch": false},
+    {"description": "Replace pipe flashing", "quantity": "6", "unit": "each",
+     "unit_price": "85.00", "computed_line_total": "510.00",
+     "stated_line_total": "510.00", "mismatch": false},
+    {"description": "Dumpster and disposal", "quantity": "1", "unit": "lot",
+     "unit_price": "900.00", "computed_line_total": "900.00",
+     "stated_line_total": "900.00", "mismatch": false}
+  ],
+  "computed_total": "16910.00",
+  "quoted_total": "16910.00",
+  "total_discrepancy": "0.00",
+  "per_line_variance": [
+    {"description": "Install architectural shingles", "quoted_unit_price": "425.00",
+     "benchmark_median": null, "variance_pct": null, "flag": "no_data"},
+    ... (one entry per line; these units have no local benchmark, so all are "no_data")
+  ],
+  "benchmark_provenance": [],
+  "overall_flag": "insufficient_data",
+  "findings": [
+    "We don't have local benchmark data for 4 of 4 lines (line 1 (\"Tear off old shingles\"), line 2 (\"Install architectural shingles\"), line 3 (\"Replace pipe flashing\"), line 4 (\"Dumpster and disposal\")), so those weren't rated.",
+    "We don't have enough local benchmark data to rate this estimate overall."
+  ],
+  "calculation_trail": [
+    {"step": 1, "operation": "line_total",
+     "inputs": {"line": 1, "description": "Tear off old shingles", "quantity": "20", "unit_price": "350.00"},
+     "result": "7000.00"},
+    {"step": 2, "operation": "stated_compare",
+     "inputs": {"line": 1, "stated_line_total": "7000.00", "computed_line_total": "7000.00"},
+     "result": "false"},
+    ... (one entry per arithmetic operation)
+  ],
+  "coverage_note": "Benchmark coverage: 0 of 4 lines (0% by dollar value) had local data. Lines without data were excluded from the overall rating: line 1 (\"Tear off old shingles\"), line 2 (\"Install architectural shingles\"), line 3 (\"Replace pipe flashing\"), line 4 (\"Dumpster and disposal\")."
+}</pre>
+<div class="ok"><strong>When units match a benchmark, per-line comparison
+works.</strong> Request
+<code>{"estimate_text": "1. Install asphalt shingles 2000 sq ft @ $5.50 = $11,000.00", "zip": "80202", "trade": "roofing", "quoted_total": 11000.00}</code>
+returned (actual, excerpts):
+<code>per_line_variance: [{"description": "Install asphalt shingles", "quoted_unit_price": "5.50", "benchmark_median": "5.50", "variance_pct": "0.0000", "flag": "normal", "sample_size": 0, "provenance_ref": 0}]</code>
+— the $5.50/sq ft quote sits exactly on the Denver median.
+<code>sample_size</code> is 0 because this is a seed benchmark, not observed
+job data. <code>benchmark_provenance</code> carries the full provenance text
+(identical to the <code>provenance</code> string in the
+<code>get_cost_range</code> example above); <code>provenance_ref: 0</code>
+points at entry 0 in that list. Lines with no benchmark data get
+<code>"flag": "no_data"</code> and neither field.</div>
+
+<h2>Health endpoint — <code>GET /health</code></h2>
+<p>Not an MCP tool: a plain HTTPS endpoint for monitoring. It never throws —
+a dead database still returns HTTP 200 with <code>"connected": false</code>
+and a reason. The probe is constant-cost no matter how many observations are
+stored. Actual response:</p>
+<pre>{
+  "status": "ok",
+  "service": "estimateguard-mcp",
+  "db": {
+    "connected": true,
+    "observation_rows": 54,
+    "last_write_at": "2026-09-20T01:16:10.451019+00:00",
+    "benchmark_rows": 271
+  }
+}</pre>
+<p><code>observation_rows</code> counts stored PII-stripped line items and grows
+as estimates are evaluated; <code>benchmark_rows</code> is the seed-benchmark
+count (271 across 12 metros).</p>
+
+<footer>
+  <p>EstimateGuard MCP server — endpoint
+  <code>https://estimateguard-mcp.onrender.com</code>. See the
+  <a href="privacy-policy.html">privacy policy</a> for what is stored and why.</p>
+</footer>
+
+</body>
+</html>

@@ -16,13 +16,14 @@ from __future__ import annotations
 import asyncio
 import os
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Optional
 
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 from pydantic import BaseModel, Field
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 
 from costdata import (
     BASIS_LABEL,
@@ -300,6 +301,22 @@ async def health(request: Request) -> JSONResponse:
     return JSONResponse(
         {"status": "ok", "service": "estimateguard-mcp", "db": db}
     )
+
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+@mcp.custom_route("/privacy-policy.html", methods=["GET"])
+async def privacy_policy(request: Request) -> FileResponse:
+    # Public submission document; no auth, no PII, static file.
+    return FileResponse(STATIC_DIR / "privacy-policy.html", media_type="text/html")
+
+
+@mcp.custom_route("/documentation.html", methods=["GET"])
+async def documentation(request: Request) -> FileResponse:
+    # Public submission document; no auth, no PII, static file.
+    # Links to privacy-policy.html relatively, so both live side by side.
+    return FileResponse(STATIC_DIR / "documentation.html", media_type="text/html")
 
 
 app = mcp.http_app(transport="http", path="/mcp")
