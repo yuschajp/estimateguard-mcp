@@ -211,19 +211,28 @@ def _content_tokens(text: str) -> set[str]:
 
 
 def resolve_candidates(
-    candidates: list[dict], hint: Optional[str]
+    candidates: list[dict], hint: Optional[str], require_hint: bool = False
 ) -> Optional[dict]:
     """Pick one benchmark row from same-(region, trade, basis) candidates.
 
     One candidate -> it wins. Several -> the hint's content tokens must all
     appear in exactly one candidate's service type. Otherwise None: the
     caller reports the ambiguity instead of guessing.
+
+    ``require_hint`` withdraws the free win for a lone candidate, and is set
+    by callers that did not choose the service type themselves. Line-by-line
+    estimate evaluation is the case: seed service types describe whole jobs
+    ("Cost per Sq Ft (Asphalt)" is a finished roof, tear-off and disposal
+    included), so letting a lone candidate win would rate a tear-off line
+    against the price of the entire roof and report it as far below market.
+    A homeowner asking ``get_cost_range`` named the trade and scope
+    themselves, so there the lone candidate is the answer they asked for.
     """
     if not candidates:
         return None
-    if len(candidates) == 1:
-        return candidates[0]
     hint_toks = _content_tokens(hint) if hint else set()
+    if len(candidates) == 1 and not require_hint:
+        return candidates[0]
     if not hint_toks:
         return None
     winners = [
@@ -270,10 +279,74 @@ def db_reachable() -> bool:
     return _connect() is not None
 
 
+def _row_label(csv_row: dict) -> str:
+    return f"{csv_row.get('City')} / {csv_row.get('Service_Type')}"
+
+
+def _structurally_valid(csv_row: dict) -> bool:
+    """Reject a CSV row whose columns have shifted.
+
+    An unquoted comma inside a field (e.g. a service type written as
+    ``Panel Upgrade (200 amp, underground service)``) pushes every later
+    value one column left, so prices land in the wrong fields and a labor
+    rate can end up holding a project price. ``csv.DictReader`` parks the
+    overflow under the ``None`` key, which is the signal here. Such a row is
+    skipped loudly rather than stored: a wrong price is worse than a
+    missing one.
+    """
+    if None in csv_row:
+        print(
+            f"[benchmarks] skipping malformed row (extra unquoted commas, "
+            f"columns shifted): {_row_label(csv_row)}; overflow="
+            f"{csv_row.get(None)!r}",
+            file=sys.stderr, flush=True,
+        )
+        return False
+    return True
+
+
+# A published hourly labor rate above this is not a labor rate; it is a
+# project price that landed in the wrong column.
+_MAX_PLAUSIBLE_LABOR_RATE = Decimal("1000")
+
+
+def _ordering_valid(
+    row: dict, csv_row: dict, label: Optional[str] = None
+) -> bool:
+    """Reject a normalized row whose prices contradict each other.
+
+    low <= avg <= high must hold for any real range, and an hourly labor
+    rate has a sane ceiling. A violation means the values are not what
+    their column names say, so the row is skipped rather than served.
+    """
+    name = label or _row_label(csv_row)
+    low, avg, high = row["low_price"], row["avg_price"], row["high_price"]
+    problems = []
+    if low is not None and low > avg:
+        problems.append(f"low {low} > avg {avg}")
+    if high is not None and high < avg:
+        problems.append(f"high {high} < avg {avg}")
+    for field in ("labor_rate_low", "labor_rate_high"):
+        rate = row[field]
+        if rate is not None and rate > _MAX_PLAUSIBLE_LABOR_RATE:
+            problems.append(f"{field} {rate} exceeds hourly ceiling")
+    if problems:
+        print(
+            f"[benchmarks] skipping implausible row ({'; '.join(problems)}): "
+            f"{name}",
+            file=sys.stderr, flush=True,
+        )
+        return False
+    return True
+
+
 def _normalize_row(csv_row: dict) -> Optional[dict]:
     # Deferred import: costdata imports this module lazily, so a top-level
     # import here would be circular.
     from costdata import normalize_trade
+
+    if not _structurally_valid(csv_row):
+        return None
 
     avg = _to_decimal(csv_row.get("Avg_Price", ""))
     if avg is None:
@@ -302,7 +375,7 @@ def _normalize_row(csv_row: dict) -> Optional[dict]:
     permit_lo, permit_hi = _parse_low_high(csv_row.get("Permit_Cost", ""))
     source = (csv_row.get("Data_Source") or "").strip() or "unspecified"
     region = (csv_row.get("City") or "").strip()
-    return {
+    row = {
         "region": region,
         "zip3": None,  # city-level rows; no unambiguous zip3 mapping exists
         "trade": normalize_trade((csv_row.get("Trade") or "").strip().lower()),
@@ -320,6 +393,7 @@ def _normalize_row(csv_row: dict) -> Optional[dict]:
         # Source date follows the dataset generation the row came from.
         "as_of_date": _REGION_AS_OF_DATE.get(region, AS_OF_EXPANSION),
     }
+    return row if _ordering_valid(row, csv_row) else None
 
 
 _UPSERT_SQL = """
@@ -408,6 +482,56 @@ def _row_to_result(db_row: tuple) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Area-basis conversion (per roofing square <-> per square foot)
+# ---------------------------------------------------------------------------
+# A roofing square is exactly 100 square feet, so these two bases describe the
+# same quantity at a fixed ratio and converting between them is arithmetic,
+# not estimation. Nothing else converts: a flat project price cannot become a
+# unit price without knowing the job size, and inventing that size would be a
+# guess. Only the price range converts; labor rates are hourly and permit
+# costs are per project, so both are carried across untouched.
+SQFT_PER_SQUARE = Decimal("100")
+
+_BASIS_TEXT = {"per_square": "per roofing square", "per_sqft": "per square foot"}
+
+_CONVERTS_TO = {"per_square": "per_sqft", "per_sqft": "per_square"}
+
+
+def convert_basis(row: dict, target_basis: str) -> Optional[dict]:
+    """Restate a per-area benchmark row in the other per-area basis.
+
+    Returns the row unchanged when it is already in ``target_basis``, a
+    converted copy when the two bases are per-area (exact x100 / /100), and
+    None when no exact conversion exists. A converted row says so in its
+    provenance, so a homeowner is never shown a derived figure that claims
+    to be a published one.
+    """
+    source_basis = row.get("basis")
+    if source_basis == target_basis:
+        return row
+    if _CONVERTS_TO.get(source_basis) != target_basis:
+        return None
+    factor = (
+        SQFT_PER_SQUARE
+        if target_basis == "per_square"
+        else Decimal(1) / SQFT_PER_SQUARE
+    )
+    converted = dict(row)
+    for field in ("low", "median", "high"):
+        value = row.get(field)
+        converted[field] = value * factor if value is not None else None
+    converted["basis"] = target_basis
+    converted["converted_from"] = source_basis
+    converted["provenance"] = (
+        f"{row.get('provenance') or ''} Restated by EstimateGuard from "
+        f"{_BASIS_TEXT[source_basis]} to {_BASIS_TEXT[target_basis]} "
+        f"(1 roofing square = 100 square feet); the published figures are "
+        f"{_BASIS_TEXT[source_basis]}."
+    ).strip()
+    return converted
+
+
 def count_winners(candidates: list[dict], hint: Optional[str]) -> int:
     """How many candidates the hint uniquely identifies (0, 1, or more)."""
     if not candidates:
@@ -423,7 +547,10 @@ def count_winners(candidates: list[dict], hint: Optional[str]) -> int:
 
 
 def find_candidates(
-    trade: str, basis: Optional[str], zip3: str
+    trade: str,
+    basis: Optional[str],
+    zip3: str,
+    allow_conversion: bool = True,
 ) -> list[dict]:
     """All seed rows for (region, trade), optionally filtered to one basis.
 
@@ -431,6 +558,10 @@ def find_candidates(
     ("asphalt shingle 2000 sqft") without declaring a pricing unit, so the
     hint can disambiguate across per-sqft and flat rows alike.
     Empty list when none/DB down.
+
+    When a per-area basis has no published rows, rows in the other per-area
+    basis are restated into it (see ``convert_basis``). ``allow_conversion``
+    is the internal guard that keeps that fallback one level deep.
     """
     region = region_for_zip3(zip3)
     if region is None:
@@ -468,17 +599,42 @@ def find_candidates(
                     """,
                     (region, trade, basis),
                 )
-            return [_row_to_result(r) for r in cur.fetchall()]
+            rows = [_row_to_result(r) for r in cur.fetchall()]
     except Exception as exc:
         print(f"[benchmarks] lookup failed: {exc}", file=sys.stderr, flush=True)
         return []
 
+    if rows or not allow_conversion or basis is None or basis not in _CONVERTS_TO:
+        return rows
+
+    # Nothing published in the requested per-area basis. The other per-area
+    # basis describes the same thing at a fixed 100:1 ratio, so restate those
+    # rows rather than reporting a miss a homeowner would read as "no data
+    # for my area".
+    converted = [
+        row
+        for row in (
+            convert_basis(candidate, basis)
+            for candidate in find_candidates(
+                trade, _CONVERTS_TO[basis], zip3, allow_conversion=False
+            )
+        )
+        if row is not None
+    ]
+    return converted
+
 
 def lookup(
-    trade: str, basis: Optional[str], zip3: str, hint: Optional[str] = None
+    trade: str,
+    basis: Optional[str],
+    zip3: str,
+    hint: Optional[str] = None,
+    require_hint: bool = False,
 ) -> Optional[dict]:
     """One seed row for (trade, zip), disambiguated by hint across bases."""
-    return resolve_candidates(find_candidates(trade, basis, zip3), hint)
+    return resolve_candidates(
+        find_candidates(trade, basis, zip3), hint, require_hint=require_hint
+    )
 
 
 def has_coverage(trade: str, zip3: str) -> bool:
@@ -501,7 +657,12 @@ def has_coverage(trade: str, zip3: str) -> bool:
 
 
 def bases_for(trade: str, zip3: str) -> list[str]:
-    """Which pricing bases have seed rows for this trade in the ZIP's region."""
+    """Which pricing bases can be answered for this trade in the ZIP's region.
+
+    Includes a per-area basis that has no rows of its own but can be
+    restated from the other per-area basis, since that is what the lookup
+    will actually serve.
+    """
     region = region_for_zip3(zip3)
     if region is None:
         return []
@@ -514,9 +675,15 @@ def bases_for(trade: str, zip3: str) -> list[str]:
                 "SELECT DISTINCT basis FROM benchmark_ranges WHERE region = %s AND trade = %s",
                 (region, trade),
             )
-            return sorted(r[0] for r in cur.fetchall())
+            stored = {r[0] for r in cur.fetchall()}
     except Exception:
         return []
+    servable = set(stored)
+    for stored_basis in stored:
+        derived = _CONVERTS_TO.get(stored_basis)
+        if derived is not None:
+            servable.add(derived)
+    return sorted(servable)
 
 
 def count_rows() -> Optional[int]:

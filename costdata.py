@@ -55,8 +55,8 @@ _BASIS_SYNONYMS = {
     "sq ft": BASIS_PER_SQFT,
     "sqft": BASIS_PER_SQFT,
     "sf": BASIS_PER_SQFT,
-    "foot": BASIS_PER_SQFT,
-    "feet": BASIS_PER_SQFT,
+    "square foot": BASIS_PER_SQFT,
+    "square feet": BASIS_PER_SQFT,
     # flat / per project
     "flat": BASIS_FLAT,
     "per project": BASIS_FLAT,
@@ -225,9 +225,31 @@ def normalize_basis(scope: str) -> Optional[str]:
     return None
 
 
+# Length units. A ridge vent at $12.50 per linear foot and a roof at $6.50
+# per square foot are priced per different things, so a length unit must
+# never resolve to an area basis. Bare "foot"/"feet" is ambiguous on an
+# estimate and is far more often linear (gutter, ridge, trim), so it is
+# treated as a length unit too: no basis, hence no comparison, rather than a
+# comparison against the wrong kind of price.
+_LENGTH_UNITS = frozenset(
+    {
+        "linear foot", "linear feet", "linear ft", "lineal foot",
+        "lineal feet", "lin ft", "lf", "foot", "feet", "ft",
+        "yard", "yards", "inch", "inches",
+    }
+)
+
+
+def is_length_unit(unit: str) -> bool:
+    """True when a line-item unit measures length, not area or count."""
+    return (unit or "").strip().lower().replace(".", "") in _LENGTH_UNITS
+
+
 def basis_from_unit(unit: str) -> Optional[str]:
     """Map a line-item unit word to a pricing basis, or None if unknown."""
     text = unit.strip().lower().replace(".", "")
+    if text in _LENGTH_UNITS:
+        return None
     if text in _BASIS_SYNONYMS:
         return _BASIS_SYNONYMS[text]
     # crude singularization: "boxes" -> "box"
@@ -247,7 +269,11 @@ def _scaffold_row(row: dict) -> dict:
 
 
 def seed_row(
-    trade: str, basis: Optional[str], zip_code: str, hint: Optional[str] = None
+    trade: str,
+    basis: Optional[str],
+    zip_code: str,
+    hint: Optional[str] = None,
+    require_hint: bool = False,
 ) -> Optional[dict]:
     """Raw seed row for a normalized (trade, zip), or None.
 
@@ -259,7 +285,9 @@ def seed_row(
     tests), the legacy in-memory scaffolding table answers instead.
     """
     if benchmarks.db_reachable():
-        row = benchmarks.lookup(trade, basis, _zip3_of(zip_code), hint)
+        row = benchmarks.lookup(
+            trade, basis, _zip3_of(zip_code), hint, require_hint=require_hint
+        )
         if row is not None:
             row = dict(row)
             # The row's own basis labels the unit; fall back to the

@@ -187,7 +187,7 @@ San Francisco,Plumbing,Whole-House Replumbing,10000,14000,19000,100,200,700-1300
 San Francisco,Plumbing,Bathroom Remodel,16000,22000,30000,100,200,1000-2000,High material + labor costs,Angi
 San Francisco,Electrical,Service Call,150,325,550,100,200,150-300,High-demand market,Angi
 San Francisco,Electrical,Electrical Panel Upgrade (100-200 amp),2500,4000,5500,100,200,300-600,Standard overhead upgrade,AlphaOmegaElectric
-San Francisco,Electrical,Panel Upgrade (200 amp, underground service),5500,12000,18500,100,200,500-1200,Underground service requires trenching/sidewalk work,AlphaOmegaElectric
+San Francisco,Electrical,"Panel Upgrade (200 amp, underground service)",5500,12000,18500,100,200,500-1200,Underground service requires trenching/sidewalk work,AlphaOmegaElectric
 San Francisco,Electrical,Full House Rewiring,10000,16000,32000,100,200,600-1800,Older Victorian/Edwardian wiring common,Angi
 San Francisco,Roofing,Asphalt Shingle Replacement (1500 sqft),11000,14500,18000,N/A,N/A,300-700,Seismic + fire-code requirements,RoofingCalc
 San Francisco,Roofing,Asphalt Shingle Replacement (2000 sqft),14500,19000,24000,N/A,N/A,300-700,Most common size,RoofReport

@@ -450,8 +450,17 @@ def evaluate(
     # ---- benchmarks + per-line variance ----
     for line in lines:
         basis = basis_from_unit(line["unit"]) if trade_norm else None
+        # require_hint: nothing here chose the service type, so a lone
+        # benchmark row must still be named by the line's own description
+        # before it rates that line. See benchmarks.resolve_candidates.
         row = (
-            seed_row(trade_norm, basis, zip_norm, hint=line["description"])
+            seed_row(
+                trade_norm,
+                basis,
+                zip_norm,
+                hint=line["description"],
+                require_hint=True,
+            )
             if (trade_norm and basis)
             else None
         )
