@@ -230,7 +230,7 @@ def _lookup(trade: str, scope: str, zip_code: str) -> CostRangeResult:
         "Labor rates and permit costs are included when the source published them. "
         "If there is no data for that trade and ZIP code, it says so plainly instead of guessing."
     ),
-    annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+    annotations={"title": "Get Regional Cost Range", "readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
 )
 def get_cost_range(trade: str, scope: str, zip: str) -> CostRangeResult:
     try:
@@ -253,7 +253,7 @@ def get_cost_range(trade: str, scope: str, zip: str) -> CostRangeResult:
         "each unit price against what's typical near your ZIP, and gives a "
         "plain-language verdict a homeowner can act on."
     ),
-    annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+    annotations={"title": "Evaluate Contractor Estimate", "readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
 )
 def evaluate_estimate(
     estimate_text: str,
