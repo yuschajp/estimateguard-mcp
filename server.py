@@ -19,6 +19,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from fastmcp import FastMCP
+from fastmcp.server.dependencies import get_http_headers
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -35,10 +36,32 @@ from costdata import (
     seed_row,
 )
 from estimate_eval import evaluate as _evaluate_estimate
-from observations import db_status
+from observations import HEADER_SOURCES, db_status
 from benchmarks import count_rows as benchmark_count
 
 mcp = FastMCP("EstimateGuard")
+
+# Request header verification tooling sets (once, in its HTTP client) so its
+# evaluate_estimate calls are stamped source='test' automatically. The header
+# can only ever select 'test' or 'verification' -- never 'production' -- so a
+# caller can downgrade its own rows out of the production corpus but can never
+# launder rows into it. Absent header: the ESTIMATEGUARD_OBSERVATION_SOURCE
+# env var decides, defaulting to 'production'.
+OBSERVATION_SOURCE_HEADER = "x-estimateguard-source"
+
+
+def _request_observation_source() -> str | None:
+    """Source stamp requested by the caller via header, or None.
+
+    Never raises: without a live HTTP request (tests, scripts) there is
+    simply no header and the env var / default applies.
+    """
+    try:
+        headers = get_http_headers()
+    except Exception:
+        return None
+    value = (headers.get(OBSERVATION_SOURCE_HEADER) or "").strip().lower()
+    return value if value in HEADER_SOURCES else None
 
 
 class CostRangeResult(BaseModel):
@@ -251,7 +274,11 @@ def evaluate_estimate(
             }
     try:
         return _evaluate_estimate(
-            estimate_text, zip, trade=trade, quoted_total=quoted_total
+            estimate_text,
+            zip,
+            trade=trade,
+            quoted_total=quoted_total,
+            source=_request_observation_source(),
         )
     except Exception:
         # Structured error, never a stack trace.

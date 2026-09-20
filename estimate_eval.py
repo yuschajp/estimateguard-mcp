@@ -310,10 +310,16 @@ def evaluate(
     zip_code: str,
     trade: Optional[str] = None,
     quoted_total=None,
+    source: Optional[str] = None,
 ) -> dict:
     """Evaluate a contractor estimate. Returns the result dict or an
     ``{"error", "reason"}`` dict. All numbers are recomputed from the raw
     literals by the named pure functions above.
+
+    ``source`` is the observation provenance stamp ('production' | 'test' |
+    'verification'); when omitted it resolves automatically (env var,
+    default 'production'), so test/verification callers stamp correctly
+    without remembering to pass it.
     """
     trail = CalcTrail()
 
@@ -736,7 +742,12 @@ def evaluate(
         for line in lines
     ]
     record_observations(
-        build_rows(zip_code=zip_norm, trade=trade_norm or "", lines=obs_lines)
+        build_rows(
+            zip_code=zip_norm,
+            trade=trade_norm or "",
+            lines=obs_lines,
+            source=source,
+        )
     )
 
     return resp

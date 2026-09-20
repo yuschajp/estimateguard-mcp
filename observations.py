@@ -4,12 +4,19 @@ Writes one row per evaluated line item to Render Postgres. Only the
 whitelisted, PII-free fields are ever persisted:
 
     observed_at, zip3, trade, scope, line_description,
-    quantity, unit, unit_price, computed_line_total
+    quantity, unit, unit_price, computed_line_total, source
 
 PII is stripped from the estimate text during parsing, *before* any
 observation row is constructed. Strip counts are logged per category for
 auditing. The insert path never raises: if the database is unavailable the
 tool result is unaffected and the failure is logged server-side.
+
+Provenance: every row carries a ``source`` of 'production' | 'test' |
+'verification' (default 'production'). Rows written by the test suite or by
+verification tooling are stamped automatically (see ``resolve_source``) so
+they can never be mistaken for real evaluations. Any aggregation that feeds
+benchmarks MUST filter to source='production' -- use
+``fetch_production_observations``.
 """
 
 from __future__ import annotations
@@ -18,6 +25,7 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 try:
     import psycopg
@@ -35,7 +43,8 @@ CREATE TABLE IF NOT EXISTS estimate_observations (
     quantity NUMERIC NOT NULL,
     unit TEXT NOT NULL,
     unit_price NUMERIC(12, 2) NOT NULL,
-    computed_line_total NUMERIC(12, 2) NOT NULL
+    computed_line_total NUMERIC(12, 2) NOT NULL,
+    source TEXT NOT NULL DEFAULT 'production'
 );
 CREATE INDEX IF NOT EXISTS idx_estimate_observations_trade_scope_zip3
     ON estimate_observations (trade, scope, zip3);
@@ -54,6 +63,70 @@ CREATE TABLE IF NOT EXISTS health_counters (
 # Name of the counter row tracking estimate_observations.
 OBSERVATION_COUNTER_NAME = "estimate_observations"
 
+# Allowed provenance values for the `source` column.
+SOURCE_VALUES = ("production", "test", "verification")
+
+# Server-side env var stamping the source of written rows. The test suite
+# forces this to 'test' (see tests/conftest.py); operators can set it to
+# 'verification' on a staging/verification deployment.
+SOURCE_ENV_VAR = "ESTIMATEGUARD_OBSERVATION_SOURCE"
+
+# Values a client may select via the X-EstimateGuard-Source request header.
+# 'production' is deliberately excluded: a caller can only ever downgrade its
+# own rows out of the production corpus, never launder rows into it.
+HEADER_SOURCES = ("test", "verification")
+
+# Migration DDL lives in migrations/002_observation_source.sql and is loaded
+# here so the file the service applies and the file a human reviews cannot
+# drift (same pattern as benchmarks.py / 001).
+_MIGRATION_002_PATH = (
+    Path(__file__).resolve().parent / "migrations" / "002_observation_source.sql"
+)
+
+
+def _load_migration_sql() -> str:
+    ddl = _MIGRATION_002_PATH.read_text(encoding="utf-8")
+    stmts = [
+        line for line in ddl.splitlines() if not line.lstrip().startswith("--")
+    ]
+    return "\n".join(stmts).strip() + "\n"
+
+
+_MIGRATION_002_SQL = _load_migration_sql()
+
+
+def resolve_source(explicit: str | None = None) -> str:
+    """Resolve the provenance stamp for rows about to be written.
+
+    Precedence: an explicit per-request value (the X-EstimateGuard-Source
+    header, already restricted to test/verification by the caller) beats the
+    ``ESTIMATEGUARD_OBSERVATION_SOURCE`` env var, which beats the default
+    'production'. Invalid values are ignored with a stderr warning -- never
+    persisted -- so a typo can neither pollute the corpus nor crash the tool.
+    """
+    if explicit is not None:
+        norm = explicit.strip().lower()
+        if norm in HEADER_SOURCES:
+            return norm
+        print(
+            f"[observations] ignoring invalid explicit source {explicit!r}; "
+            "falling back to env/default",
+            file=sys.stderr,
+            flush=True,
+        )
+    env = (os.environ.get(SOURCE_ENV_VAR) or "").strip().lower()
+    if env in SOURCE_VALUES:
+        return env
+    if env:
+        print(
+            f"[observations] ignoring invalid {SOURCE_ENV_VAR}={env!r}; "
+            "defaulting to 'production'",
+            file=sys.stderr,
+            flush=True,
+        )
+    return "production"
+
+
 # Fields that may appear in an observation row. Anything else is dropped.
 ALLOWED_ROW_FIELDS = (
     "zip3",
@@ -64,6 +137,7 @@ ALLOWED_ROW_FIELDS = (
     "unit",
     "unit_price",
     "computed_line_total",
+    "source",
 )
 
 # ---------------------------------------------------------------------------
@@ -227,13 +301,19 @@ def build_rows(
     zip_code: str,
     trade: str,
     lines: list[dict],
+    source: str | None = None,
 ) -> list[dict]:
     """Build whitelisted observation rows from evaluated line internals.
 
     Each line dict carries: description, quantity (str), unit (str),
     unit_price (str), computed_line_total (str), scope (str).
+
+    ``source`` is the provenance stamp; when omitted it is resolved
+    automatically via ``resolve_source`` (env var, default 'production'),
+    so test and verification callers never have to remember to pass it.
     """
     zip3 = zip3_of(zip_code)
+    stamped = resolve_source(source)
     rows = []
     for line in lines:
         rows.append(
@@ -246,6 +326,7 @@ def build_rows(
                 "unit": line.get("unit") or "",
                 "unit_price": line.get("unit_price") or "",
                 "computed_line_total": line.get("computed_line_total") or "",
+                "source": stamped,
             }
         )
     for row in rows:
@@ -270,6 +351,11 @@ def _connect():
             _conn = psycopg.connect(dsn, connect_timeout=10)
             with _conn.cursor() as cur:
                 cur.execute(SCHEMA_SQL)
+                # Migration 002: provenance tracking. Adds the `source`
+                # column and backfills every pre-existing row as 'test'
+                # (all of them predate this migration and come from
+                # development / acceptance testing). Idempotent.
+                cur.execute(_MIGRATION_002_SQL)
                 # One-time seed of the health counter from the exact row
                 # count, so rows written before this deploy are included.
                 # Runs once per process; the ON CONFLICT makes it a no-op
@@ -309,10 +395,10 @@ def record_observations(rows: list[dict]) -> dict:
                 """
                 INSERT INTO estimate_observations
                     (observed_at, zip3, trade, scope, line_description,
-                     quantity, unit, unit_price, computed_line_total)
+                     quantity, unit, unit_price, computed_line_total, source)
                 VALUES (now(), %(zip3)s, %(trade)s, %(scope)s,
                         %(line_description)s, %(quantity)s, %(unit)s,
-                        %(unit_price)s, %(computed_line_total)s)
+                        %(unit_price)s, %(computed_line_total)s, %(source)s)
                 """,
                 rows,
             )
@@ -337,6 +423,44 @@ def record_observations(rows: list[dict]) -> dict:
         except Exception:
             pass
         return {"inserted": 0, "error": True}
+
+
+def fetch_production_observations(
+    conn,
+    *,
+    trade: str | None = None,
+    scope: str | None = None,
+    zip3: str | None = None,
+    limit: int = 10000,
+) -> list[dict]:
+    """Read observations for benchmark aggregation.
+
+    ALWAYS restricted to source='production'. Test and verification rows
+    must never feed benchmarks. Any future aggregation over
+    estimate_observations must use this helper or replicate its filter.
+    Raises on database errors (callers decide how to handle).
+    """
+    clauses = ["source = 'production'"]
+    params: dict = {"limit": limit}
+    if trade:
+        clauses.append("trade = %(trade)s")
+        params["trade"] = trade
+    if scope:
+        clauses.append("scope = %(scope)s")
+        params["scope"] = scope
+    if zip3:
+        clauses.append("zip3 = %(zip3)s")
+        params["zip3"] = zip3
+    sql = (
+        "SELECT observed_at, zip3, trade, scope, line_description,"
+        " quantity, unit, unit_price, computed_line_total"
+        " FROM estimate_observations WHERE " + " AND ".join(clauses) +
+        " ORDER BY observed_at DESC LIMIT %(limit)s"
+    )
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
 def utc_now_iso() -> str:
