@@ -319,6 +319,18 @@ async def documentation(request: Request) -> FileResponse:
     return FileResponse(STATIC_DIR / "documentation.html", media_type="text/html")
 
 
+@mcp.custom_route("/icon.png", methods=["GET"])
+async def icon(request: Request) -> FileResponse:
+    # Public brand asset for the directory listing; no auth, static file.
+    return FileResponse(STATIC_DIR / "icon.png", media_type="image/png")
+
+
+@mcp.custom_route("/favicon.ico", methods=["GET"])
+async def favicon(request: Request) -> FileResponse:
+    # Same PNG served as the site favicon (browsers sniff the content).
+    return FileResponse(STATIC_DIR / "icon.png", media_type="image/png")
+
+
 app = mcp.http_app(transport="http", path="/mcp")
 
 
