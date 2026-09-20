@@ -32,6 +32,13 @@ searches every basis and the description disambiguates across them, so a
 "2000 sqft" project matches the flat project-price row rather than a
 per-square-foot row.
 
+The two per-area bases interconvert, since a roofing square is exactly 100
+square feet: a per-square query in a metro whose benchmark is published per
+square foot is answered from that row restated (×100 / ÷100 on the price
+range only — hourly labor rates and per-project permit costs carry over
+untouched), and every restated row says so in its `provenance`. Flat project
+prices never convert, because that would require inventing a job size.
+
 Output: `low`, `median`, `high` (USD decimal strings, rounded to cents),
 `unit`, `sample_size`, `as_of_date`, `provenance` (where the figures came
 from), `service_type` (the specific benchmarked job), `region` (the metro
@@ -69,9 +76,30 @@ against the regional benchmark, and the overall rating. If a printed line total
 disagrees with quantity × unit price, the recomputed value is authoritative
 and the mismatch is reported as a finding — never silently corrected.
 
+A line is rated only when its own description names the benchmark it would be
+rated against. Seed service types describe whole jobs — "Cost per Sq Ft
+(Asphalt)" is a finished roof, tear-off and disposal included — so rating a
+tear-off line against one would report a fair price as far below market.
+Length units (`linear feet`, `lf`) resolve to no pricing basis at all, so a
+length-priced line is never compared against an area price.
+
+That leaves area trades unrated line by line, since no line of a roofing
+estimate matches a whole-roof benchmark. `whole_estimate_comparison` closes
+that gap: it takes the job size from the largest area-priced line (20
+squares → 2,000 sq ft; area lines are never summed, because tear-off and
+install describe the same roof), looks up the job-level range for that size,
+and compares the recomputed total against it. A benchmark naming the exact
+job size is preferred; otherwise the all-in per-square-foot figure is
+multiplied by the area, and the response says which happened
+(`scaled_by_area`). Sizes are never interpolated between two published rows.
+When the line-by-line path produced no verdict, this comparison supplies
+`overall_flag`.
+
 Output: `parsed_line_items`, `computed_total`, `quoted_total`,
 `total_discrepancy`, `per_line_variance` (flags `low`/`normal`/`high`/`no_data`,
-truncated to the 15 largest-dollar lines), `overall_flag`
+truncated to the 15 largest-dollar lines), `whole_estimate_comparison` (null
+when the estimate prices nothing by area, or no job-level benchmark applies),
+`overall_flag`
 (`below_range`/`within_range`/`above_range`/`insufficient_data`), `findings`
 (plain homeowner language), `calculation_trail` (every computation step), and
 `coverage_note`. Errors return `{"error", "reason"}` instead.
@@ -118,8 +146,8 @@ python3 tests/test_observations.py
 `migrations/001_benchmark_ranges.sql` creates the `benchmark_ranges` table
 (money is `NUMERIC`; the migration file is the single source of truth and is
 loaded by `benchmarks.py`). Import the vendored CSV
-(`data/benchmarks_7cities.csv`, byte-identical to the legacy
-estimate-reviewer's `COMPETITIVE_DATA_7_CITIES.csv`):
+(`data/benchmarks_7cities.csv`, the legacy estimate-reviewer's
+`COMPETITIVE_DATA_7_CITIES.csv` with one field quoted — see below):
 
 ```sh
 DATABASE_URL=postgres://... python3 scripts/import_benchmarks.py
@@ -127,6 +155,29 @@ DATABASE_URL=postgres://... python3 scripts/import_benchmarks.py
 
 The import upserts on `(region, trade, service_type)` — safe to rerun. The
 service also seeds automatically on first boot when the table is empty.
+
+The importer rejects a row whose columns have shifted or whose values
+contradict each other (low above the average, high below it, an hourly labor
+rate above $1,000) and logs it, rather than storing prices that are not what
+their column names say. One shipped row needed this: an unquoted comma in
+`Panel Upgrade (200 amp, underground service)` had shifted every later
+column, so San Francisco served a $5,500 median for a $12,000 job and an
+$18,500 hourly labor rate. The CSV field is now quoted, which is the only
+byte that differs from the legacy file.
+
+Because the import only ever upserts, a row stored under a service type the
+CSV no longer contains — including one stored under a corrupted name — stays
+in the table and can still be served. To make the table match the CSV
+exactly:
+
+```sh
+DATABASE_URL=postgres://... python3 scripts/sync_benchmarks.py --dry-run
+DATABASE_URL=postgres://... python3 scripts/sync_benchmarks.py
+```
+
+It imports, then deletes any row the CSV no longer names. Idempotent, and
+the dry run prints what it would delete. **A database seeded before the row
+above was repaired still holds the corrupted row; run this once against it.**
 
 Coverage: 12 metros (Atlanta, Boston, Chicago, Dallas-Fort Worth, Denver,
 Los Angeles, Miami, NYC, Phoenix, San Francisco, Seattle, Washington DC) ×

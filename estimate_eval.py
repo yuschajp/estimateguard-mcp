@@ -18,6 +18,9 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Optional
 
 from costdata import (
+    BASIS_FLAT,
+    BASIS_PER_SQFT,
+    BASIS_PER_SQUARE,
     CENT,
     ZIP_RE,
     basis_from_unit,
@@ -305,6 +308,81 @@ def _err(code: str, reason: str) -> dict:
     return {"error": code, "reason": reason}
 
 
+# ---------------------------------------------------------------------------
+# Whole-estimate comparison
+# ---------------------------------------------------------------------------
+# Seed benchmarks for area trades price a finished job ("Asphalt Shingle
+# (2000 sqft)" covers tear-off, shingles, labor and disposal), while an
+# estimate splits that job across component lines. No line matches such a
+# benchmark, so line-by-line rating alone leaves those estimates unrated. The
+# comparable quantity is the estimate's own recomputed total against the
+# job-level range for the same job size.
+
+SQFT_PER_SQUARE = Decimal("100")
+
+
+def derive_job_sqft(lines: list[dict]) -> Optional[tuple[Decimal, dict]]:
+    """Job area in square feet, taken from the area-priced lines.
+
+    Returns the area and the line it came from, or None when the estimate
+    prices nothing by area.
+
+    The rule is the LARGEST area-priced line, never their sum: an estimate's
+    area lines describe the same surface from different angles (tear off 20
+    squares, install 20 squares), so adding them would double the roof and
+    match the estimate against a much bigger job. A job genuinely split into
+    separately priced sections is therefore measured by its largest section,
+    which understates the area; the comparison reports the figure it used so
+    a homeowner can see that assumption rather than inherit it silently.
+    """
+    measured: list[tuple[Decimal, dict]] = []
+    for line in lines:
+        basis = basis_from_unit(line["unit"])
+        if basis == BASIS_PER_SQUARE:
+            measured.append((dec_mul(line["qty_dec"], SQFT_PER_SQUARE), line))
+        elif basis == BASIS_PER_SQFT:
+            measured.append((line["qty_dec"], line))
+    if not measured:
+        return None
+    return max(measured, key=lambda pair: pair[0])
+
+
+def _sqft_token(sqft: Decimal) -> str:
+    """'2000 sqft' for a whole number of feet, for benchmark matching."""
+    whole = sqft.quantize(Decimal("1"))
+    return f"{whole} sqft" if whole == sqft else f"{sqft} sqft"
+
+
+def whole_job_benchmark(
+    trade: str, zip_code: str, sqft: Decimal
+) -> Optional[dict]:
+    """A job-level range for this trade and job size, or None.
+
+    Prefers a flat benchmark whose service type names this exact job size,
+    because it is published as a range for that size. Falls back to the
+    all-in per-square-foot benchmark scaled by the job's area. Sizes are
+    never interpolated between two published rows: the relationship between
+    job size and price is not documented as linear, so a 1,800 sq ft job
+    with only 1,500 and 2,000 sq ft rows available gets the per-square-foot
+    path or nothing.
+    """
+    sized = seed_row(
+        trade, BASIS_FLAT, zip_code, hint=_sqft_token(sqft), require_hint=True
+    )
+    if sized is not None:
+        return {**sized, "scaled_by_area": False}
+
+    per_sqft = seed_row(trade, BASIS_PER_SQFT, zip_code)
+    if per_sqft is None:
+        return None
+    scaled = dict(per_sqft)
+    for field in ("low", "median", "high"):
+        value = per_sqft.get(field)
+        scaled[field] = dec_mul(value, sqft) if value is not None else None
+    scaled["scaled_by_area"] = True
+    return scaled
+
+
 def evaluate(
     estimate_text: str,
     zip_code: str,
@@ -571,6 +649,80 @@ def evaluate(
         overall_flag,
     )
 
+    # ---- whole-estimate comparison against a job-level benchmark ----
+    # Runs when the trade's benchmarks price whole jobs and the estimate
+    # measures an area, which is exactly the case line-by-line rating cannot
+    # serve. It never overrides a line-level verdict; it fills one in when
+    # the lines could not produce one.
+    whole_estimate: Optional[dict] = None
+    measurement = derive_job_sqft(lines) if trade_norm else None
+    if measurement is not None and computed_total > 0:
+        job_sqft, size_line = measurement
+        job_bench = whole_job_benchmark(trade_norm, zip_norm, job_sqft)
+        if job_bench is not None:
+            job_low, job_median, job_high = (
+                job_bench.get("low"),
+                job_bench.get("median"),
+                job_bench.get("high"),
+            )
+            if job_bench["scaled_by_area"]:
+                trail.add(
+                    "job_benchmark_scaled",
+                    {
+                        "job_sqft": str(job_sqft),
+                        "per_sqft_median": str(job_median / job_sqft),
+                    },
+                    str(job_median),
+                )
+            if job_low is not None and computed_total < job_low:
+                job_flag = "below_range"
+            elif job_high is not None and computed_total > job_high:
+                job_flag = "above_range"
+            elif job_low is not None or job_high is not None:
+                job_flag = "within_range"
+            else:
+                job_flag = (
+                    "above_median" if computed_total > job_median else "below_median"
+                )
+            trail.add(
+                "whole_estimate_compare",
+                {
+                    "computed_total": str(computed_total),
+                    "job_low": str(job_low) if job_low is not None else None,
+                    "job_median": str(job_median),
+                    "job_high": str(job_high) if job_high is not None else None,
+                },
+                job_flag,
+            )
+            whole_estimate = {
+                "job_size_sqft": str(job_sqft),
+                "job_size_note": (
+                    f"Taken from the largest area-priced line "
+                    f"(\"{size_line['description']}\", {size_line['quantity']} "
+                    f"{size_line['unit']}). Area lines are not added together, "
+                    f"so a job priced in separate sections is measured by its "
+                    f"largest section."
+                ),
+                "benchmark_service_type": job_bench.get("service_type"),
+                "benchmark_region": job_bench.get("region"),
+                "benchmark_low": money_str(job_low) if job_low is not None else None,
+                "benchmark_median": money_str(job_median),
+                "benchmark_high": money_str(job_high) if job_high is not None else None,
+                "scaled_by_area": job_bench["scaled_by_area"],
+                "flag": job_flag,
+                "sample_size": job_bench.get("sample_size"),
+            }
+            if job_bench["scaled_by_area"]:
+                whole_estimate["job_size_note"] += (
+                    " No benchmark names this job size, so the all-in "
+                    "per-square-foot figure was multiplied by the area."
+                )
+            if overall_flag == "insufficient_data" and job_flag in (
+                "below_range", "within_range", "above_range",
+            ):
+                overall_flag = job_flag
+                whole_estimate["drove_overall_flag"] = True
+
     # ---- quoted total discrepancy ----
     discrepancy: Optional[Decimal] = None
     if quoted_dec is not None:
@@ -623,6 +775,40 @@ def evaluate(
             f"We don't have local benchmark data for {len(no_data_lines)} of "
             f"{len(lines)} lines ({names}), so those weren't rated."
         )
+    if whole_estimate is not None:
+        size_text = f"{whole_estimate['job_size_sqft']} sq ft"
+        # Published bounds are often partial (a guide printed an average but
+        # no low), so the figures are named individually rather than forced
+        # into a range that isn't there.
+        figures = ", ".join(
+            part
+            for part in (
+                f"low ${whole_estimate['benchmark_low']}"
+                if whole_estimate["benchmark_low"]
+                else None,
+                f"typical ${whole_estimate['benchmark_median']}",
+                f"high ${whole_estimate['benchmark_high']}"
+                if whole_estimate["benchmark_high"]
+                else None,
+            )
+            if part
+        )
+        verdict = {
+            "below_range": "comes in below the published range",
+            "within_range": "sits within the published range",
+            "above_range": "comes in above the published range",
+            "below_median": "comes in under the typical price",
+            "above_median": "comes in over the typical price",
+        }[whole_estimate["flag"]]
+        job_text = f"{size_text} {trade_norm} job" if trade_norm else f"{size_text} job"
+        findings.insert(
+            0,
+            f"As a whole job, this estimate (${money_str(computed_total)}) "
+            f"{verdict} for a {job_text} near {zip_norm} ({figures}; "
+            f"\"{whole_estimate['benchmark_service_type']}\", "
+            f"{whole_estimate['benchmark_region']})."
+        )
+
     overall_text = {
         "below_range": (
             f"The priced lines we have data for come in below the typical range "
@@ -640,6 +826,13 @@ def evaluate(
             "We don't have enough local benchmark data to rate this estimate overall."
         ),
     }[overall_flag]
+    if whole_estimate is not None and whole_estimate.get("drove_overall_flag"):
+        # The verdict came from the whole-job comparison, not from the lines.
+        overall_text = (
+            f"None of the individual lines could be rated (local benchmarks "
+            f"price whole jobs, not line items), so this rating compares the "
+            f"estimate total against the job-level range."
+        )
     findings.append(overall_text)
     findings = findings[:MAX_FINDINGS]
 
@@ -659,6 +852,12 @@ def evaluate(
         if prov not in _provenance_index:
             _provenance_index[prov] = len(benchmark_provenance)
             benchmark_provenance.append(prov)
+    if whole_estimate is not None:
+        prov = job_bench.get("provenance") or ""
+        if prov not in _provenance_index:
+            _provenance_index[prov] = len(benchmark_provenance)
+            benchmark_provenance.append(prov)
+        whole_estimate["provenance_ref"] = _provenance_index[prov]
 
     # ---- per-line variance (truncate to largest-dollar lines) ----
     variance_entries = [
@@ -752,6 +951,7 @@ def evaluate(
             money_str(discrepancy) if discrepancy is not None else None
         ),
         "per_line_variance": variance_entries,
+        "whole_estimate_comparison": whole_estimate,
         "overall_flag": overall_flag,
         "findings": findings,
         "calculation_trail": trail_steps,
