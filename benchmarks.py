@@ -182,6 +182,31 @@ def _load_migration_003_sql() -> str:
 MIGRATION_003_SQL = _load_migration_003_sql()
 
 
+def _sync_missing_benchmarks(conn) -> None:
+    """Upsert the vendored CSV when the DB holds fewer rows than it.
+
+    The table seeds from CSV only when empty, so data expansions committed
+    after the first seed (e.g. new metros/trades) never reached existing
+    databases. This closes that gap idempotently: import_csv() upserts on
+    (region, trade, service_type), so reruns are safe.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM benchmark_ranges")
+            (db_n,) = cur.fetchone()
+        with open(CSV_PATH, newline="", encoding="utf-8-sig") as f:
+            csv_n = sum(1 for _ in csv.DictReader(f))
+        if db_n < csv_n:
+            result = import_csv(conn)
+            print(
+                f"[benchmarks] synced {result.get('imported', 0)} rows "
+                f"(db had {db_n}, csv has {csv_n})",
+                file=sys.stderr, flush=True,
+            )
+    except Exception as exc:
+        print(f"[benchmarks] sync check failed: {exc}", file=sys.stderr, flush=True)
+
+
 # ---------------------------------------------------------------------------
 # CSV parsing / normalization (Decimal throughout; source floats never carried)
 # ---------------------------------------------------------------------------
@@ -318,6 +343,7 @@ def _connect():
                 cur.execute(SCHEMA_SQL)
                 cur.execute(MIGRATION_003_SQL)
             _conn.commit()
+            _sync_missing_benchmarks(_conn)
             _ensure_seeded(_conn)
         return _conn
     except Exception as exc:  # never break the tool on DB trouble
