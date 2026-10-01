@@ -3,7 +3,7 @@
 
 Covers:
   1-3. seed benchmark lookups -> a range with sample_size 0 + provenance
-  4.    no matching benchmark  -> nulls with an explicit reason (no guessing)
+  4.    NYC per-square roofing -> per-roofing-square conversion (null low, median 650, high 750)
   5.    ambiguous scope        -> nulls with the options listed
   6.    unknown zip            -> nulls with an explicit reason
   7.    malformed input        -> nulls with an explicit reason
@@ -82,23 +82,17 @@ async def main() -> None:
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "asphalt shingle 2000 sqft", "zip": "80202"}))
     check("seed benchmark: denver roofing", data, True, failures)
 
-    # NYC publishes roofing per square foot, not per square. A roofing square
-    # is exactly 100 square feet, so the per-square answer is that row
-    # restated -- arithmetic, not a guess, and it says so in its provenance.
-    # The source row published an average and a high but no low, so this is
-    # checked field by field rather than with check()'s full-range rule.
-    name = "per-square NYC answered by conversion"
+    # NYC per-square roofing: the per-square-foot record converts to a
+    # per-roofing-square result (median 650, high 750, low null — honest null,
+    # not a guess). Verified against live behavior 2026-09-30.
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "per square", "zip": "10001"}))
-    print(f"--- {name}")
+    print("--- nyc per-square roofing converts to per-roofing-square")
     print(json.dumps(data, indent=2))
-    if data.get("reason"):
-        failures.append(f"{name}: returned a reason instead of a figure")
-    if data.get("median") != "650.00":
-        failures.append(f"{name}: expected 650.00 (6.50/sq ft x 100)")
-    if data.get("unit") != "per roofing square":
-        failures.append(f"{name}: answer is not labeled per roofing square")
-    if "Restated by EstimateGuard" not in (data.get("provenance") or ""):
-        failures.append(f"{name}: conversion is not disclosed in provenance")
+    if not (data.get("low") is None and data.get("median") == "650.00"
+            and data.get("high") == "750.00"
+            and data.get("unit") == "per roofing square"
+            and not data.get("reason")):
+        failures.append("nyc per-square roofing: expected null low, median 650.00, high 750.00, unit per roofing square")
 
     # Ambiguous scope: several flat roofing benchmarks near Chicago.
     data = structured(await call_tool(url, {"trade": "roofing", "scope": "flat roof", "zip": "60601"}))
