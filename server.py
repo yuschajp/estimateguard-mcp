@@ -405,6 +405,50 @@ class SubscribeRequest(BaseModel):
     email: str
 
 
+@mcp.custom_route("/api/admin/cleanup-own-test", methods=["POST"])
+async def api_cleanup_own_test(request: Request) -> JSONResponse:
+    """One-time removal of the developer's own live-verification row.
+
+    Matches ONLY the exact fingerprint of the 2026-09-30 API smoke test
+    (description, zip3, price, recent timestamp, production source). A real
+    user row cannot match this fingerprint. This route is temporary and
+    will be removed after the cleanup call.
+    """
+    from observations import _connect
+
+    def _run():
+        conn = _connect()
+        if conn is None:
+            return {"deleted": 0, "reason": "no_db"}
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM estimate_observations
+                WHERE source = 'production'
+                  AND zip3 = '787'
+                  AND trade = 'plumbing'
+                  AND line_description = 'Water heater replacement'
+                  AND unit_price = 1325.00
+                  AND observed_at > now() - interval '2 hours'
+                RETURNING id
+                """,
+            )
+            ids = cur.fetchall()
+            if ids:
+                cur.execute(
+                    """
+                    UPDATE health_counters SET n = n - %s
+                    WHERE name = 'estimate_observations'
+                    """,
+                    (len(ids),),
+                )
+        conn.commit()
+        return {"deleted": len(ids)}
+
+    result = await asyncio.to_thread(_run)
+    return JSONResponse(result)
+
+
 @mcp.custom_route("/api/subscribe", methods=["POST"])
 async def api_subscribe(request: Request) -> JSONResponse:
     """Email capture for the web estimate-checker. Stores the address and
