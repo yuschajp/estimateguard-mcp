@@ -95,6 +95,27 @@ def _load_migration_sql() -> str:
 _MIGRATION_002_SQL = _load_migration_sql()
 
 
+# Migration 004: email capture for the web estimate-checker form.
+_MIGRATION_004_PATH = (
+    Path(__file__).resolve().parent / "migrations" / "004_email_subscribers.sql"
+)
+
+
+def _load_migration_004_sql() -> str:
+    ddl = _MIGRATION_004_PATH.read_text(encoding="utf-8")
+    stmts = [
+        line for line in ddl.splitlines() if not line.lstrip().startswith("--")
+    ]
+    return "\n".join(stmts).strip() + "\n"
+
+
+_MIGRATION_004_SQL = _load_migration_004_sql()
+
+# Minimal email shape check for the subscribe endpoint. This is a sanity
+# filter, not RFC validation; delivery is never attempted server-side.
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
 def resolve_source(explicit: str | None = None) -> str:
     """Resolve the provenance stamp for rows about to be written.
 
@@ -425,6 +446,9 @@ def _connect():
                 # (all of them predate this migration and come from
                 # development / acceptance testing). Idempotent.
                 cur.execute(_MIGRATION_002_SQL)
+                # Migration 004: email capture table for the web form.
+                # Idempotent.
+                cur.execute(_MIGRATION_004_SQL)
                 # One-time seed of the health counter from the exact row
                 # count, so rows written before this deploy are included.
                 # Runs once per process; the ON CONFLICT makes it a no-op
@@ -492,6 +516,52 @@ def record_observations(rows: list[dict]) -> dict:
         except Exception:
             pass
         return {"inserted": 0, "error": True}
+
+
+def subscribe_email(email: str, source: str = "web_form") -> dict:
+    """Record an email subscription. Never raises.
+
+    Returns {"subscribed": True} on a new subscription,
+    {"subscribed": True, "already": True} when the address was already on
+    the list, or {"subscribed": False, "reason": ...} on invalid input or
+    database trouble.
+    """
+    if not isinstance(email, str):
+        return {"subscribed": False, "reason": "Please enter an email address."}
+    email = email.strip().lower()
+    if not EMAIL_RE.match(email):
+        return {"subscribed": False, "reason": "That doesn't look like an email address."}
+    if len(email) > 254:
+        return {"subscribed": False, "reason": "That email address is too long."}
+    conn = _connect()
+    if conn is None:
+        print("[observations] subscribe skipped: no database connection",
+              file=sys.stderr, flush=True)
+        return {"subscribed": False, "reason": "Couldn't save that right now. Please try again."}
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO email_subscribers (email, source)
+                VALUES (%s, %s)
+                ON CONFLICT (lower(email)) WHERE unsubscribed_at IS NULL
+                DO NOTHING
+                RETURNING id
+                """,
+                (email, source),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        if row is None:
+            return {"subscribed": True, "already": True}
+        return {"subscribed": True}
+    except Exception as exc:
+        print(f"[observations] subscribe failed: {exc}", file=sys.stderr, flush=True)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return {"subscribed": False, "reason": "Couldn't save that right now. Please try again."}
 
 
 def fetch_production_observations(

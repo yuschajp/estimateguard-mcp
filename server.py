@@ -22,6 +22,7 @@ from typing import Optional
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_headers
 from pydantic import BaseModel, Field
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 
@@ -37,7 +38,7 @@ from costdata import (
     seed_row,
 )
 from estimate_eval import evaluate as _evaluate_estimate
-from observations import HEADER_SOURCES, db_status
+from observations import HEADER_SOURCES, db_status, subscribe_email
 from benchmarks import count_rows as benchmark_count
 
 mcp = FastMCP("EstimateGuard")
@@ -331,7 +332,108 @@ async def favicon(request: Request) -> FileResponse:
     return FileResponse(STATIC_DIR / "icon.png", media_type="image/png")
 
 
+class EvaluateRequest(BaseModel):
+    estimate_text: str
+    zip: str
+    trade: Optional[str] = None
+    quoted_total: Optional[float] = None
+
+
+@mcp.custom_route("/api/evaluate", methods=["POST"])
+async def api_evaluate(request: Request) -> JSONResponse:
+    """REST wrapper around evaluate_estimate for the web estimate-checker.
+
+    Same deterministic evaluation and PII stripping as the MCP tool.
+    Web-form submissions are real user traffic, so rows are stamped
+    source='production' explicitly -- the header override only ever selects
+    'test'/'verification' and is ignored here.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {"error": "invalid_json", "reason": "The request body wasn't valid JSON."},
+            status_code=400,
+        )
+    if not isinstance(body, dict):
+        return JSONResponse(
+            {"error": "invalid_json", "reason": "The request body must be a JSON object."},
+            status_code=400,
+        )
+    try:
+        req = EvaluateRequest(
+            estimate_text=body.get("estimate_text"),
+            zip=body.get("zip"),
+            trade=body.get("trade"),
+            quoted_total=body.get("quoted_total"),
+        )
+    except Exception:
+        return JSONResponse(
+            {"error": "invalid_input",
+             "reason": "estimate_text and zip are required as text; quoted_total must be a number."},
+            status_code=400,
+        )
+    quoted_total = req.quoted_total
+    if quoted_total is not None and not isinstance(quoted_total, bool):
+        try:
+            quoted_total = Decimal(str(quoted_total))
+        except (InvalidOperation, ValueError):
+            return JSONResponse(
+                {"error": "invalid_quoted_total",
+                 "reason": "quoted_total must be a number, for example 17500."},
+                status_code=400,
+            )
+    try:
+        result = await asyncio.to_thread(
+            _evaluate_estimate,
+            req.estimate_text,
+            req.zip,
+            trade=req.trade,
+            quoted_total=quoted_total,
+            source="production",
+        )
+    except Exception:
+        return JSONResponse(
+            {"error": "internal_error",
+             "reason": "Something went wrong evaluating that estimate. Please try again."},
+            status_code=500,
+        )
+    return JSONResponse(result)
+
+
+class SubscribeRequest(BaseModel):
+    email: str
+
+
+@mcp.custom_route("/api/subscribe", methods=["POST"])
+async def api_subscribe(request: Request) -> JSONResponse:
+    """Email capture for the web estimate-checker. Stores the address and
+    nothing else; see the privacy policy for retention and removal."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {"error": "invalid_json", "reason": "The request body wasn't valid JSON."},
+            status_code=400,
+        )
+    email = body.get("email") if isinstance(body, dict) else None
+    result = await asyncio.to_thread(subscribe_email, email)
+    status_code = 200 if result.get("subscribed") else 400
+    return JSONResponse(result, status_code=status_code)
+
+
 app = mcp.http_app(transport="http", path="/mcp")
+
+# The static guides site (GitHub Pages) calls /api/* from the browser.
+# CORS is scoped to that origin only; the MCP endpoint is unaffected
+# beyond gaining the same allow-origin header.
+app = CORSMiddleware(
+    app,
+    allow_origins=["https://yuschajp.github.io"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+    max_age=86400,
+)
 
 
 if __name__ == "__main__":
